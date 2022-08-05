@@ -26,9 +26,12 @@ list wordlist = NULL;
 
 // Function signatures
 
-// List functions
-list list_add(list l, char *string);
-list search(list l, char *string);
+// List management functions
+int size(list l);
+list add(list l, char *new_data);
+list delete(list l, char *to_delete);
+list search(list l, char *query);
+void print(list l);
 
 // Support functions
 void empty_buffer(char *b);
@@ -81,25 +84,50 @@ int main() {
     }
 }
 
-list list_add(list l, char *string) {
+int size(list l) {
+    if(l == NULL)
+        return 0;
+    else
+        return 1 + size(l -> next);
+}
+
+list add(list l, char *new_data) {
     if(l == NULL) {
         struct node *tmp = malloc(sizeof(struct node));
-        tmp -> word = string;
-        tmp -> valid = 1;
+        tmp -> data = new_data;
         tmp -> next = l;
         return tmp;
-    }
-    else {
-        l -> next = list_add(l -> next, string);
+    } else {
+        l -> next = add(l -> next, new_data);
         return l;
     }
 }
 
-list search(list l, char *string) {
-    if(l == NULL || l -> word == string)
+list delete(list l, char *to_delete) {
+    if(l != NULL) {
+        if(l -> data == to_delete) {
+            list tmp = l;
+            l = l -> next;
+            free(tmp);
+        } else l -> next = delete(l -> next, to_delete);
+    }
+    return l;
+}
+
+list search(list l, char *query) {
+    if(l == NULL || !strcmp(l -> data, query))
         return l;
     else
-        return search(l -> next, string);
+        return search(l -> next, query);
+}
+
+void print(list l) {
+    if (l == NULL)
+        printf("END\n");
+    else {
+        printf("%s -> ", l -> data);
+        print(l -> next);
+    }
 }
 
 void empty_buffer(char *b) {
