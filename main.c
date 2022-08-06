@@ -24,7 +24,6 @@ struct node {
 typedef struct node *list;
 
 // Empty word list
-typedef struct node *list;
 list wordlist = NULL;
 
 // Filtered word list
@@ -69,7 +68,7 @@ int main() {
             if(!strcmp(buffer, "+nuova_partita"))
                 command_chk = 1;
             // Otherwise adds the word to the word list
-            wordlist = list_add(wordlist, buffer);
+            wordlist = add_sort(wordlist, buffer);
         }
     }
 
