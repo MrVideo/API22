@@ -20,9 +20,15 @@ struct node {
     struct node *next;
 };
 
+// List definition
+typedef struct node *list;
+
 // Empty word list
 typedef struct node *list;
 list wordlist = NULL;
+
+// Filtered word list
+list filtered = NULL;
 
 // Function signatures
 
