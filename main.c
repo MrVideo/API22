@@ -33,6 +33,8 @@ list filtered = NULL;
 // Function signatures
 
 // List management functions
+
+// TODO Check for unused functions
 int size(list l);
 list add(list l, char *new_data);
 list delete(list l, char *to_delete);
@@ -41,13 +43,17 @@ void print(list l);
 list add_sort(list l, char *new_data);
 
 // Support functions
+// TODO Find a better alternative
 void empty_buffer(char *b);
 
 // Game functions
+// TODO Implement these functions
 void filtered_print(list l);
 void add_new(list l);
 
 int main() {
+    // TODO Rewrite the main function
+
     // Initialisation
     system("clear");
     printf("Progetto Finale 2022 Politecnico di Milano - Mario Merlo\n\n");
