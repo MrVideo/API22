@@ -2,122 +2,189 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define BUFSIZE 1024
+#define BUFSIZE 128
 
-// This is the start of something awful.
-
-// Global variables
-int word_length, tries;
-char buffer[BUFSIZE];   // This is the string buffer to check for commands and guesses passed by the user.
-int command_chk = 0;    // This value checks whether a command was passed to the program and breaks different loops.
-char password[256];     // This is the word that the player has to guess.
-int win = 0;            // This variable lets the game end when the player guesses the word.
-
-// Node
 struct node {
-    char *word;
-    int valid;
+    char *data;
     struct node *next;
 };
 
-// List definition
 typedef struct node *list;
 
-// Empty word list
-list wordlist = NULL;
-
-// Filtered word list
-list filtered = NULL;
-
-// Function signatures
-
-// List management functions
-
-// TODO Check for unused functions
-int size(list l);
-list add(list l, char *new_data);
+list add_sort(list l, char *new_data);
+void print(list l);
 list delete(list l, char *to_delete);
 list search(list l, char *query);
-void print(list l);
-list add_sort(list l, char *new_data);
-
-// Support functions
-// TODO Find a better alternative
-void empty_buffer(char *b);
-
-// Game functions
-// TODO Implement these functions
-void filtered_print(list l);
-void add_new(list l);
 
 int main() {
-    // TODO Rewrite the main function
+    // Variable declarations
+    char *buffer = calloc(BUFSIZE, sizeof(char));
+    char *password = calloc(BUFSIZE, sizeof(char));
+    char *guide = calloc(BUFSIZE, sizeof(char));
+    int word_length, cmd_chk = 0, tries, ok = 0;
+    list wordlist = NULL;
 
-    // Initialisation
-    system("clear");
-    printf("Progetto Finale 2022 Politecnico di Milano - Mario Merlo\n\n");
+    // Saves the word length decided by the user.
+    word_length = (int)strtol(fgets(buffer, BUFSIZE, stdin), NULL, 10);
 
-    // Word length input
-    printf("Inserisci la lunghezza delle parole: ");
-    if(scanf("%d", &word_length)) {
-        // Endless loop for correct words input
-        printf("Inserisci le parole ammissibili di seguito\n");
-        // Checks whether the user inputs "+nuova_partita" to start a new game
-        while(!command_chk) {
-            scanf("%s", buffer);
-            if(!strcmp(buffer, "+nuova_partita"))
-                command_chk = 1;
-            // Otherwise adds the word to the word list
-            wordlist = add_sort(wordlist, buffer);
-        }
-    }
-
-    // Game start
-    printf("Inizio nuova partita\n");
-    printf("Inserisci la parola da indovinare: ");
-    // Saves the password to guess
-    if(scanf("%s", password)) {
-        // Asks user for tries
-        printf("\nInserisci il numero dei tentativi: ");
-        if(scanf("%d", &tries)) {
-            // The player starts guessing
-            while(tries && !win) {
-                empty_buffer(buffer);
-                if(scanf("%s", buffer)) {
-                    if(!strcmp(buffer, password))
-                        win = 1;
-                    else if(!strcmp(buffer, "+stampa_filtrate"))
-                        filtered_print(wordlist);
-                    else if(!strcmp(buffer, "+inserisci_inizio"))
-                        add_new(wordlist);
-                }
+    // Starts saving new words to the main word list.
+    if(word_length > 0) {
+        while(!cmd_chk) {
+            if(scanf("%s", buffer) != 0) {
+                if(strcmp(buffer, "+nuova_partita") == 0)
+                    cmd_chk = 1;
+                else
+                    wordlist = add_sort(wordlist, buffer);
             }
         }
     }
+
+    // If the word has been input before, the password is saved.
+    if(scanf("%s", buffer) != 0) {
+        if(search(wordlist, buffer) != NULL)
+            password = strdup(buffer);
+    }
+    // Asks the user for the number of tries in the game.
+    tries = (int)strtol(fgets(buffer, BUFSIZE, stdin), NULL, 10);
+
+    do { // TODO fix this
+        for(int i = 0; i < BUFSIZE; ++i)
+            buffer[i] = '\0';
+        if(scanf("%*[^\n\t ]%s", buffer) != 0) {
+            if(strlen(buffer) != word_length)
+                printf("not_exists");
+            else {
+                if(!strcmp(buffer, password))
+                    ok = 1;
+                else {
+                    for(int i = 0; i < word_length; ++i)
+                        guide[i] = '\0';
+                    --tries;
+                    for(int i = 0; i < word_length; ++i) {
+                        if(password[i] == buffer[i])
+                            guide[i] = '+';
+                        else if(strchr(password, buffer[i]) == NULL)
+                            guide[i] = '/';
+                    }
+                    int pwd_count, ok_count, misplaced_count, k = 0, l;
+                    char tmp_chr;
+                    while(k < word_length) {
+                        pwd_count = 0;
+                        ok_count = 0;
+                        misplaced_count = 0;
+                        if(guide[k] != '+' && guide[k] != '/') {
+                            tmp_chr = buffer[k];
+                            for(int i = 0; i < word_length; ++i) {
+                                if(buffer[i] == tmp_chr && password[i] != tmp_chr && guide[i] != '/')
+                                    ++misplaced_count;
+                                if(buffer[i] == tmp_chr && guide[i] == '+')
+                                    ++ok_count;
+                                if(password[i] == tmp_chr)
+                                    ++pwd_count;
+                            }
+                            l = 0;
+                            if(ok_count == pwd_count) {
+                                while(misplaced_count > 0 && l < word_length) {
+                                    if(buffer[l] == tmp_chr && guide[l] != '+' && guide[l] != '/') {
+                                        guide[l] = '/';
+                                        --misplaced_count;
+                                    }
+                                    ++l;
+                                }
+                            } else if(pwd_count > ok_count) {
+                                while(misplaced_count > 0 && l < word_length) {
+                                    if(buffer[l] == tmp_chr && guide[l] != '+' && guide[l] != '/') {
+                                        if(pwd_count > ok_count) {
+                                            guide[l] = '|';
+                                            --misplaced_count;
+                                            --pwd_count;
+                                        } else if(pwd_count == ok_count) {
+                                            guide[l] = '/';
+                                            --misplaced_count;
+                                        }
+                                    }
+                                    ++l;
+                                }
+                            }
+                        }
+                        ++k;
+                    }
+                }
+            }
+        }
+        if(!ok) {
+            for (int i = 0; i < word_length; ++i)
+                printf("%c", guide[i]);
+        }
+    } while(ok == 0 && tries > 0);
+
+    // Terminates program.
+    return 0;
 }
 
-int size(list l) {
-    if(l == NULL)
-        return 0;
-    else
-        return 1 + size(l -> next);
-}
+list add_sort(list l, char *new_data) {
+    list prev = NULL, curr = l;
 
-list add(list l, char *new_data) {
+    //If the list is empty, add the element on top.
     if(l == NULL) {
-        struct node *tmp = malloc(sizeof(struct node));
-        tmp -> data = new_data;
+        list tmp = malloc(sizeof(struct node));
+        tmp -> data = strdup(new_data);
         tmp -> next = l;
         return tmp;
     } else {
-        l -> next = add(l -> next, new_data);
-        return l;
+        //If the list is not empty
+        while(curr != NULL) {
+            //If new_data comes before the current node's data then add it before curr
+            if(strcmp(new_data, curr -> data) < 0) {
+                list tmp = malloc(sizeof(struct node));
+                tmp -> data = strdup(new_data);
+                tmp -> next = curr;
+                //If the item goes in the first position, do not try to connect the previous node to it
+                //Otherwise, do it
+                if(prev != NULL) {
+                    prev -> next = tmp;
+                    return l;
+                } else return tmp;
+                //If the strings are the same, add it in the next node (it keeps the algorithm stable)
+            } else if(strcmp(new_data, curr -> data) == 0) {
+                prev = curr;
+                curr = curr -> next;
+                list tmp = malloc(sizeof(struct node));
+                tmp -> data = strdup(new_data);
+                tmp -> next = curr;
+                prev -> next = tmp;
+                return l;
+                //Otherwise, just keep searching the list
+            } else {
+                prev = curr;
+                curr = curr -> next;
+            }
+        }
+        //If the list is over and nothing was added to it, the item goes in last
+        if(curr == NULL && prev != NULL) {
+            list tmp = malloc(sizeof(struct node));
+            tmp -> data = strdup(new_data);
+            tmp -> next = curr;
+            prev -> next = tmp;
+            return l;
+        }
+    }
+    //This gets executed in case of an error
+    return NULL;
+}
+
+void print(list l) {
+    if (l == NULL)
+        printf("END\n");
+    else {
+        printf("%s -> ", l -> data);
+        print(l -> next);
     }
 }
 
 list delete(list l, char *to_delete) {
     if(l != NULL) {
-        if(l -> data == to_delete) {
+        if(strcmp(l -> data, to_delete) == 0) {
             list tmp = l;
             l = l -> next;
             free(tmp);
@@ -131,77 +198,4 @@ list search(list l, char *query) {
         return l;
     else
         return search(l -> next, query);
-}
-
-void print(list l) {
-    if (l == NULL)
-        printf("END\n");
-    else {
-        printf("%s -> ", l -> data);
-        print(l -> next);
-    }
-}
-
-list add_sort(list l, char *new_data) {
-    list prev = NULL, curr = l;
-
-    //If the list is empty, add the element on top.
-    if(l == NULL) {
-        list tmp = malloc(sizeof(struct node));
-        tmp -> data = new_data;
-        tmp -> next = l;
-        return tmp;
-    } else {
-        //If the list is not empty
-        while(curr != NULL) {
-            //If new_data comes before the current node's data then add it before curr
-            if(strcmp(new_data, curr -> data) < 0) {
-                list tmp = malloc(sizeof(struct node));
-                tmp -> data = new_data;
-                tmp -> next = curr;
-                //If the item goes in the first position, do not try to connect the previous node to it
-                //Otherwise, do it
-                if(prev != NULL) {
-                    prev -> next = tmp;
-                    return l;
-                } else return tmp;
-                //If the strings are the same, add it in the next node (it keeps the algorithm stable)
-            } else if(strcmp(new_data, curr -> data) == 0) {
-                prev = curr;
-                curr = curr -> next;
-                list tmp = malloc(sizeof(struct node));
-                tmp -> data = new_data;
-                tmp -> next = curr;
-                prev -> next = tmp;
-                return l;
-                //Otherwise, just keep searching the list
-            } else {
-                prev = curr;
-                curr = curr -> next;
-            }
-        }
-        //If the list is over and nothing was added to it, the item goes in last
-        if(curr == NULL && prev != NULL) {
-            list tmp = malloc(sizeof(struct node));
-            tmp -> data = new_data;
-            tmp -> next = curr;
-            prev -> next = tmp;
-            return l;
-        }
-    }
-    //This gets executed in case of an error
-    return NULL;
-}
-
-void empty_buffer(char *b) {
-    for (int i = 0; i < BUFSIZE; ++i)
-        b[i] = '\0';
-}
-
-void filtered_print(list l) {
-
-}
-
-void add_new(list l) {
-
 }
