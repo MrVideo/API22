@@ -29,7 +29,7 @@ int main() {
     char *buffer = calloc(BUFSIZE, sizeof(char));
     char *password = calloc(BUFSIZE, sizeof(char));
     char *guide = calloc(BUFSIZE, sizeof(char));
-    int word_length, cmd_chk = 0;
+    int word_length, cmd_chk = 0, restart = 0;
     struct check status;
     list wordlist = NULL;
 
@@ -69,9 +69,11 @@ int main() {
         // This is run until EOF is read from stdin.
 
         while(1) {
+            // Resets the restart variable for future restarts.
+            restart = 0;
             // Checks for EOF to terminate program
             if(scanf("%s", buffer) == EOF)
-                return 0;
+                break;
             else {
                 // If the "+inserisci_inizio" command is passed, new words are added to the wordlist through
                 // the "add_new_words" function.
@@ -101,29 +103,32 @@ int main() {
             }
 
             // Prints the outcome and resets the game.
-            // TODO fix game restart
             if(status.ok || status.tries == 0) {
                 if(status.ok) printf("ok\n");
                 if(!status.tries) printf("ko\n");
                 status.ok = 0;
                 empty_buffer(buffer);
-                if(scanf("%s", buffer) != 0) {
-                    if(strcmp(buffer, "+inserisci_inizio") == 0)
-                        wordlist = add_new_words(wordlist, word_length);
-                    if(strcmp(buffer, "+nuova_partita") == 0) {
-                        empty_buffer(buffer);
-                        if(scanf("%s", buffer) != 0)
-                            if(search(wordlist, buffer) != NULL) {
-                                empty_buffer(password);
-                                password = strdup(buffer);
-                            }
-                        if(scanf("%d", &status.tries) != 0)
-                            continue;
+                // The user can manage settings while in this loop, until they decide to start a new game.
+                while(!restart) {
+                    if(scanf("%s", buffer) != 0) {
+                        if(strcmp(buffer, "+inserisci_inizio") == 0)
+                            wordlist = add_new_words(wordlist, word_length);
+                        if(strcmp(buffer, "+nuova_partita") == 0) {
+                            empty_buffer(buffer);
+                            if(scanf("%s", buffer) != 0)
+                                if(search(wordlist, buffer) != NULL)
+                                    password = strdup(buffer);
+                            if(scanf("%d", &status.tries) != 0)
+                                restart = 1;
+                        }
                     }
                 }
             }
         }
     }
+
+    // Terminates the program
+    return 0;
 }
 
 list add_sort(list l, char *new_data) {
