@@ -29,7 +29,7 @@ int main() {
     char *buffer = calloc(BUFSIZE, sizeof(char));
     char *password = calloc(BUFSIZE, sizeof(char));
     char *guide = calloc(BUFSIZE, sizeof(char));
-    int word_length, cmd_chk = 0, restart = 0;
+    int word_length, cmd_chk = 0, restart;
     struct check status;
     list wordlist = NULL;
 
@@ -84,8 +84,8 @@ int main() {
                 }
                 // If the word is not of the correct length or it does not appear in the wordlist,
                 // no tries are consumed and the user can retry.
-                else if(strlen(buffer) != word_length) {
-                    printf("not_exists");
+                else if(strlen(buffer) != word_length || search(wordlist, buffer) == NULL) {
+                    printf("not_exists\n");
                     empty_buffer(buffer);
                     continue;
                 }
