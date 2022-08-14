@@ -6,6 +6,7 @@
 
 struct node {
     char *data;
+    char *guide;
     struct node *next;
 };
 
@@ -16,13 +17,22 @@ struct check {
 
 typedef struct node *list;
 
+int list_size(list l);
 list add_sort(list l, char *new_data);
 void print(list l);
 list delete(list l, char *to_delete);
 list search(list l, char *query);
+list duplicate(list l);
 void empty_buffer(char *b);
 list add_new_words(list l, int len);
 struct check word_check(char *password, char *buffer, char *guide, int word_length, struct check status);
+void add_guide(list l, char *word, char *guide);
+void res_check(char *word, int len, char *guide, list f);
+
+//TODO adjust main function to account for restrictions
+// - Main must print the number of filtered words left after each comparison
+// - Main must print filtered when +stampa_filtrate is called
+// - Main must check for comparisons each time +inserisci_inizio is called
 
 int main() {
     // Variable declarations
@@ -32,6 +42,7 @@ int main() {
     int word_length, cmd_chk = 0, restart;
     struct check status;
     list wordlist = NULL;
+    list filtered = wordlist;
 
     // Check struct initialisation
     status.ok = 0;
@@ -54,6 +65,9 @@ int main() {
             }
         }
     }
+
+    // The word list is duplicated to create the filtered word list.
+    filtered = duplicate(wordlist);
 
     // If the word has been input before, the password is saved.
     empty_buffer(buffer);
@@ -92,6 +106,7 @@ int main() {
                 // If none of the checks before this get triggered, the word is checked for correctness.
                 else if(!status.ok && status.tries > 0) {
                         status = word_check(password, buffer, guide, word_length, status);
+                        add_guide(wordlist, buffer, guide);
                         empty_buffer(buffer);
                         if(!status.ok && status.tries >= 0) {
                             for (int i = 0; i < word_length; ++i)
@@ -131,6 +146,16 @@ int main() {
     return 0;
 }
 
+int list_size(list l) {
+    list curr = l;
+    int i = 0;
+    while(curr != NULL) {
+        ++i;
+        curr = curr -> next;
+    }
+    return i;
+}
+
 list add_sort(list l, char *new_data) {
     list prev = NULL, curr = l;
 
@@ -138,6 +163,7 @@ list add_sort(list l, char *new_data) {
     if(l == NULL) {
         list tmp = malloc(sizeof(struct node));
         tmp -> data = strdup(new_data);
+        tmp -> guide = NULL;
         tmp -> next = l;
         return tmp;
     } else {
@@ -147,6 +173,7 @@ list add_sort(list l, char *new_data) {
             if(strcmp(new_data, curr -> data) < 0) {
                 list tmp = malloc(sizeof(struct node));
                 tmp -> data = strdup(new_data);
+                tmp -> guide = NULL;
                 tmp -> next = curr;
                 //If the item goes in the first position, do not try to connect the previous node to it
                 //Otherwise, do it
@@ -160,6 +187,7 @@ list add_sort(list l, char *new_data) {
                 curr = curr -> next;
                 list tmp = malloc(sizeof(struct node));
                 tmp -> data = strdup(new_data);
+                tmp -> guide = NULL;
                 tmp -> next = curr;
                 prev -> next = tmp;
                 return l;
@@ -173,6 +201,7 @@ list add_sort(list l, char *new_data) {
         if(curr == NULL && prev != NULL) {
             list tmp = malloc(sizeof(struct node));
             tmp -> data = strdup(new_data);
+            tmp -> guide = NULL;
             tmp -> next = curr;
             prev -> next = tmp;
             return l;
@@ -207,6 +236,22 @@ list search(list l, char *query) {
         return l;
     else
         return search(l -> next, query);
+}
+
+list duplicate(list l) {
+    list curr = l, prev = NULL, head = NULL;
+    while(curr != NULL) {
+        list tmp = malloc(sizeof(struct node));
+        tmp -> data = curr -> data;
+        tmp -> guide = curr -> guide;
+        if(head == NULL)
+            head = tmp;
+        else
+            prev -> next = tmp;
+        prev = tmp;
+        curr = curr -> next;
+    }
+    return head;
 }
 
 void empty_buffer(char *b) {
@@ -296,4 +341,27 @@ struct check word_check(char *password, char *buffer, char *guide, int word_leng
         }
     }
     return status;
+}
+
+void add_guide(list l, char *word, char *guide) {
+    list tmp = search(l, word);
+    if(tmp != NULL)
+        if(tmp -> guide == NULL)
+            tmp -> guide = strdup(guide);
+}
+
+// TODO finish this function
+void res_check(char *word, int len, char *guide, list f) {
+    if(guide != NULL) {
+        list curr = f;
+        while(curr != NULL) {
+            for(int i = 0; i < len; ++i) {
+                if(guide[i] == '+') {
+                    if(word[i] != f -> data[i]) {
+                        f = delete(f, curr -> data);
+                    }
+                }
+            }
+        }
+    }
 }
