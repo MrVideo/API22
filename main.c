@@ -352,11 +352,8 @@ struct check word_check(char *password, char *buffer, char *guide, int word_leng
                     occurrences_check(p, tmp_chr, ok_count, word_length, 1);
                 }
 
-                // If this condition is true, then the word contains *exactly* 'pwd_count' - 'misplaced_count'
+                // If this condition is true, then the word contains *exactly* 'ok_count' + 'misplaced_count'
                 // occurrences of the character 'tmp_chr'.
-                //TODO fix this function
-                // The function cannot distinguish between exactly n occurrences and at least n occurrences because it cannot
-                // count when a character appears too many times.
                 else if(pwd_count > ok_count) {
                     // Temporary value to store how many characters are correct but in the wrong spot
                     int wrong_spot_count = 0;
@@ -364,7 +361,7 @@ struct check word_check(char *password, char *buffer, char *guide, int word_leng
                     int too_many_count = 0;
                     while(misplaced_count > 0 && l < word_length) {
                         // THE PROBLEM IS HERE
-                        if(buffer[l] == tmp_chr && guide[l] != '+' && guide[l] != '/') {
+                        if(buffer[l] == tmp_chr && guide[l] != '+') {
                             if(pwd_count > ok_count) {
                                 guide[l] = '|';
                                 --misplaced_count;
