@@ -25,7 +25,7 @@ list delete(list l, char *to_delete);
 list search(list l, char *query);
 list duplicate(list l);
 void empty_buffer(char *b);
-list add_new_words(list l, list *p, int len);
+list add_new_words(list l, list *p, int len, int postgame);
 struct check word_check(char *password, char *buffer, char *guide, int word_length, struct check status, list *p);
 void add_guide(list *p, char *word, char *guide);
 void res_check(char *word, int len, char *guide, list *p);
@@ -33,8 +33,7 @@ void occurrences_check(list *p, char c, int count, int len, int strict);
 // TODO check whether removing just one node instead of searching the list again works
 // void delete_node(list prev, list to_delete);
 
-//TODO adjust main function to account for restrictions
-// - Main must check for comparisons each time +inserisci_inizio is called
+// TODO try calling +inserisci_inizio when playing a game to check the comparison with restrictions.
 
 int main() {
     // Variable declarations
@@ -96,10 +95,7 @@ int main() {
                 // If the "+inserisci_inizio" command is passed, new words are added to the wordlist through
                 // the "add_new_words" function.
                 if(strcmp(buffer, "+inserisci_inizio") == 0) {
-                    //TODO change this to check for restrictions
-                    // - Add a restriction check for each word
-                    // - Pass a pointer to list instead of the list
-                    wordlist = add_new_words(wordlist, lp, word_length);
+                    wordlist = add_new_words(wordlist, lp, word_length, 0);
                     empty_buffer(buffer);
                     continue;
                 }
@@ -137,11 +133,13 @@ int main() {
                 if(!status.tries) printf("ko\n");
                 status.ok = 0;
                 empty_buffer(buffer);
+                filtered = duplicate(wordlist);
                 // The user can manage settings while in this loop, until they decide to start a new game.
                 while(!restart) {
-                    if(scanf("%s", buffer) != 0) {
+                    if(scanf("%s", buffer) == EOF) break;
+                    else {
                         if(strcmp(buffer, "+inserisci_inizio") == 0)
-                            wordlist = add_new_words(wordlist, filtered, word_length);
+                            wordlist = add_new_words(wordlist, lp, word_length, 1);
                         if(strcmp(buffer, "+nuova_partita") == 0) {
                             empty_buffer(buffer);
                             if(scanf("%s", buffer) != 0)
@@ -155,7 +153,6 @@ int main() {
             }
         }
     }
-
     // Terminates the program
     return 0;
 }
@@ -237,7 +234,7 @@ void debug_print(list l) {
 void print(list l) {
     list curr = l;
     while(curr != NULL) {
-        printf("%s\n", l -> data);
+        printf("%s\n", curr -> data);
         curr = curr -> next;
     }
 }
@@ -282,7 +279,7 @@ void empty_buffer(char *b) {
         b[i] = '\0';
 }
 
-list add_new_words(list l, list *p, int len) {
+list add_new_words(list l, list *p, int len, int postgame) {
     char *buffer = calloc(BUFSIZE, sizeof(char));
     int exit = 0;
 
@@ -291,8 +288,14 @@ list add_new_words(list l, list *p, int len) {
             if(strcmp(buffer, "+inserisci_fine") == 0)
                 exit = 1;
             else if(strlen(buffer) == len) {
-                l = add_sort(l, buffer);
-                res_check(buffer, len, NULL, p);
+                if(postgame) {
+                    l = add_sort(l, buffer);
+                    *p = add_sort(*p, buffer);
+                } else {
+                    l = add_sort(l, buffer);
+                    *p = add_sort(*p, buffer);
+                    res_check(buffer, len, NULL, p);
+                }
             }
         }
         empty_buffer(buffer);
@@ -360,7 +363,6 @@ struct check word_check(char *password, char *buffer, char *guide, int word_leng
                     // Temporary value to store how many characters are not in the word and are "too many"
                     int too_many_count = 0;
                     while(misplaced_count > 0 && l < word_length) {
-                        // THE PROBLEM IS HERE
                         if(buffer[l] == tmp_chr && guide[l] != '+') {
                             if(pwd_count > ok_count) {
                                 guide[l] = '|';
@@ -403,6 +405,7 @@ void res_check(char *word, int len, char *guide, list *p) {
         // While the list is not over
         while(curr != NULL) {
             for(int i = 0; i < len; ++i) {
+                break_chk = 0;
                 // If the player guessed a character right...
                 if(guide[i] == '+') {
                     // ... but the word in the list does not have that same character in the same position...
@@ -439,32 +442,34 @@ void res_check(char *word, int len, char *guide, list *p) {
         // While the list is not over
         while(curr != NULL) {
             for(int i = 0; i < len; ++i) {
-                // If the player guessed a character right...
-                if(curr -> guide[i] == '+') {
-                    // ... but the word in the list does not have that same character in the same position...
-                    if(word[i] != (*p) -> data[i]) {
-                        tmp = curr -> next;
-                        // ... delete the word from the filtered list.
-                        *p = delete(*p, curr -> data);
-                        curr = tmp;
-                        break_chk = 1;
-                        break;
+                if(curr -> guide != NULL) {
+                    // If the player guessed a character right...
+                    if(curr -> guide[i] == '+') {
+                        // ... but the word in the list does not have that same character in the same position...
+                        if(word[i] != (*p) -> data[i]) {
+                            tmp = curr -> next;
+                            // ... delete the word from the filtered list.
+                            *p = delete(*p, curr -> data);
+                            curr = tmp;
+                            break_chk = 1;
+                            break;
+                        }
                     }
-                }
-                // If the player guessed a character wrong...
-                if(curr -> guide[i] == '|' || curr -> guide[i] == '/') {
-                    // ... if a word in the list has that same character in the same position...
-                    if(word[i] == (*p) -> data[i]) {
-                        tmp = curr -> next;
-                        // ... delete the word from the filtered list.
-                        *p = delete(*p, curr -> data);
-                        curr = tmp;
-                        break_chk = 1;
-                        break;
+                    // If the player guessed a character wrong...
+                    if(curr -> guide[i] == '|' || curr -> guide[i] == '/') {
+                        // ... if a word in the list has that same character in the same position...
+                        if(word[i] == (*p) -> data[i]) {
+                            tmp = curr -> next;
+                            // ... delete the word from the filtered list.
+                            *p = delete(*p, curr -> data);
+                            curr = tmp;
+                            break_chk = 1;
+                            break;
+                        }
                     }
                 }
             }
-            if(break_chk) {
+            if(!break_chk) {
                 curr = curr -> next;
                 break_chk = 0;
             }
