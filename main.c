@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define BUFSIZE 128
+#define BUFSIZE 64
 
 struct node {
     char *data;
@@ -113,16 +113,17 @@ int main() {
                 }
                 // If none of the checks before this get triggered, the word is checked for correctness.
                 else if(!status.ok && status.tries > 0) {
-                        status = word_check(password, buffer, guide, word_length, status, lp);
-                        restrictions = add_res(restrictions, buffer, guide);
-                        res_check(buffer, word_length, guide, lp);
-                        empty_buffer(buffer);
-                        if(!status.ok && status.tries >= 0) {
-                            for (int i = 0; i < word_length; ++i)
-                                printf("%c", guide[i]);
-                            printf("\n%d\n", list_size(filtered));
-                            if(status.tries != 0) continue;
-                        }
+                    filtered = delete(filtered, buffer);
+                    status = word_check(password, buffer, guide, word_length, status, lp);
+                    restrictions = add_res(restrictions, buffer, guide);
+                    res_check(buffer, word_length, guide, lp);
+                    empty_buffer(buffer);
+                    if(!status.ok && status.tries >= 0) {
+                        for (int i = 0; i < word_length; ++i)
+                            printf("%c", guide[i]);
+                        printf("\n%d\n", list_size(filtered));
+                        if(status.tries != 0) continue;
+                    }
                 }
             }
 
