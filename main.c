@@ -112,13 +112,13 @@ int main() {
                     continue;
                 }
                 // If none of the checks before this get triggered, the word is checked for correctness.
-                else if(!status.ok && status.tries > 0) {
-                    filtered = delete(filtered, buffer);
+                else {
                     status = word_check(password, buffer, guide, word_length, status, lp);
-                    restrictions = add_res(restrictions, buffer, guide);
-                    res_check(buffer, word_length, guide, lp);
-                    empty_buffer(buffer);
                     if(!status.ok && status.tries >= 0) {
+                        filtered = delete(filtered, buffer);
+                        restrictions = add_res(restrictions, buffer, guide);
+                        res_check(buffer, word_length, guide, lp);
+                        empty_buffer(buffer);
                         for (int i = 0; i < word_length; ++i)
                             printf("%c", guide[i]);
                         printf("\n%d\n", list_size(filtered));
@@ -133,7 +133,6 @@ int main() {
                 if(!status.tries) printf("ko\n");
                 status.ok = 0;
                 empty_buffer(buffer);
-                filtered = duplicate(wordlist);
                 restrictions = destroy(restrictions);
                 // The user can manage settings while in this loop, until they decide to start a new game.
                 while(!restart) {
@@ -142,6 +141,7 @@ int main() {
                         if(strcmp(buffer, "+inserisci_inizio") == 0)
                             wordlist = add_new_words(wordlist, lp, lr, word_length, 1);
                         if(strcmp(buffer, "+nuova_partita") == 0) {
+                            filtered = duplicate(wordlist);
                             empty_buffer(buffer);
                             if(scanf("%s", buffer) != 0)
                                 if(search(wordlist, buffer) != NULL)
@@ -266,7 +266,6 @@ list duplicate(list l) {
     while(curr != NULL) {
         list tmp = malloc(sizeof(struct node));
         tmp -> data = strdup(curr -> data);
-        tmp -> guide = curr -> guide;
         tmp -> next = NULL;
         if(head == NULL)
             head = tmp;
@@ -286,22 +285,18 @@ void empty_buffer(char *b) {
 list add_new_words(list l, list *f, list *r, int len, int postgame) {
     char *buffer = calloc(BUFSIZE, sizeof(char));
     int exit = 0;
-
     while(!exit) {
         if(scanf("%s", buffer) != 0) {
             if(strcmp(buffer, "+inserisci_fine") == 0)
                 exit = 1;
             else if(strlen(buffer) == len) {
                 l = add_sort(l, buffer);
-                if(postgame)
-                    *f = add_sort(*f, buffer);
-                else
+                if(!postgame)
                     new_words_check(r, f, buffer, len);
             }
         }
         empty_buffer(buffer);
     }
-
     return l;
 }
 
@@ -342,7 +337,7 @@ struct check word_check(char *password, char *buffer, char *guide, int word_leng
                     if(password[i] == tmp_chr)
                         ++pwd_count;
                 }
-                l = 0;
+                l = k;
                 // If these two values are the same, then the word contains *exactly* 'ok_count' occurrences of the
                 // character 'tmp_chr'.
                 if(ok_count == pwd_count) {
@@ -464,14 +459,10 @@ void new_words_check(list *r, list *f, char *new_word, int len) {
     list curr = *r;
     while(curr != NULL) {
         for(int i = 0; i < len; ++i) {
-            if(curr -> guide[i] == '+') {
-                if(new_word[i] != curr -> data[i])
-                    return;
-            }
-            if(curr -> guide[i] == '|' || curr -> guide[i] == '/') {
-                if(new_word[i] == curr -> data[i])
-                    return;
-            }
+            if(curr -> guide[i] == '+' && new_word[i] != curr -> data[i])
+                return;
+            if((curr -> guide[i] == '|' || curr -> guide[i] == '/') && new_word[i] == curr -> data[i])
+                return;
         }
         curr = curr -> next;
     }
@@ -480,26 +471,11 @@ void new_words_check(list *r, list *f, char *new_word, int len) {
 }
 
 list add_res(list l, char *word, char *guide) {
-    list curr = l, prev = NULL;
-    if(curr == NULL) {
-        list tmp = malloc(sizeof(struct node));
-        tmp -> data = strdup(word);
-        tmp -> guide = strdup(guide);
-        tmp -> next = l;
-        return tmp;
-    } else {
-        while(curr != NULL) {
-            prev = curr;
-            curr = curr -> next;
-        }
-        list tmp = malloc(sizeof(struct node));
-        tmp -> data = strdup(word);
-        tmp -> guide = strdup(guide);
-        tmp -> next = NULL;
-        if(prev != NULL)
-            prev -> next = tmp;
-        return l;
-    }
+    list tmp = malloc(sizeof(struct node));
+    tmp -> data = strdup(word);
+    tmp -> guide = strdup(guide);
+    tmp -> next = l;
+    return tmp;
 }
 
 list destroy(list l) {
