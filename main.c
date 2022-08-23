@@ -18,7 +18,7 @@ struct check {
 typedef struct node *list;
 
 int list_size(list l);
-list add_sort(list l, char *new_data);
+list add_sort(list l, const char *new_data);
 void print(list l);
 list delete(list l, char *to_delete);
 list search(list l, char *query);
@@ -26,11 +26,12 @@ list duplicate(list l);
 void empty_buffer(char *b);
 list add_new_words(list l, list *f, list *r, int len, int postgame);
 struct check word_check(char *password, char *buffer, char *guide, int word_length, struct check status, list *p);
-void res_check(const char *word, int len, const char *guide, list *p);
+void res_check(const char *word, int len, const char *guide, list *p, const char *password);
 void occurrences_check(list *p, char c, int count, int len, int strict);
 void new_words_check(list *r, list *f, char *new_word, int len);
 list add_res(list l, char *word, char *guide);
 list destroy(list l);
+void new_occurrence_check(list *r, list *f, const char *new_word, int len);
 
 int main() {
     // Variable declarations
@@ -117,7 +118,7 @@ int main() {
                     if(!status.ok && status.tries >= 0) {
                         filtered = delete(filtered, buffer);
                         restrictions = add_res(restrictions, buffer, guide);
-                        res_check(buffer, word_length, guide, lp);
+                        res_check(buffer, word_length, guide, lp, password);
                         empty_buffer(buffer);
                         for (int i = 0; i < word_length; ++i)
                             printf("%c", guide[i]);
@@ -168,7 +169,7 @@ int list_size(list l) {
     return i;
 }
 
-list add_sort(list l, char *new_data) {
+list add_sort(list l, const char *new_data) {
     list prev = NULL, curr = l;
 
     //If the list is empty, add the element on top.
@@ -385,44 +386,47 @@ struct check word_check(char *password, char *buffer, char *guide, int word_leng
     return status;
 }
 
-void res_check(const char *word, int len, const char *guide, list *p) {
+void res_check(const char *word, int len, const char *guide, list *p, const char *password) {
     list tmp = NULL;
-    int break_chk = 0;
+    int break_chk;
     if(guide != NULL) {
         list curr = *p;
         // While the list is not over
         while(curr != NULL) {
             for(int i = 0; i < len; ++i) {
                 break_chk = 0;
-                // If the player guessed a character right...
-                if(guide[i] == '+') {
-                    // ... but the word in the list does not have that same character in the same position...
-                    if(word[i] != curr -> data[i]) {
-                        tmp = curr -> next;
-                        // ... delete the word from the filtered list.
-                        *p = delete(*p, curr -> data);
-                        curr = tmp;
-                        break_chk = 1;
-                        break;
-                    }
+                // If the player guessed a character right but the word in the list does not have that same character
+                // in the same position...
+                if(guide[i] == '+' && word[i] != curr -> data[i]) {
+                    tmp = curr -> next;
+                    // ... delete the word from the filtered list.
+                    *p = delete(*p, curr -> data);
+                    curr = tmp;
+                    break_chk = 1;
+                    break;
                 }
-                // If the player guessed a character wrong...
-                if(guide[i] == '|' || guide[i] == '/') {
-                    // ... if a word in the list has that same character in the same position...
-                    if(word[i] == curr -> data[i]) {
-                        tmp = curr -> next;
-                        // ... delete the word from the filtered list.
-                        *p = delete(*p, curr -> data);
-                        curr = tmp;
-                        break_chk = 1;
-                        break;
-                    }
+                // If the player guessed a character wrong and a word in the list has that same character
+                // in the same position...
+                if((guide[i] == '|' || guide[i] == '/') && word[i] == curr -> data[i]) {
+                    tmp = curr -> next;
+                    // ... delete the word from the filtered list.
+                    *p = delete(*p, curr -> data);
+                    curr = tmp;
+                    break_chk = 1;
+                    break;
+                }
+                // If the character does not appear in the password at all...
+                if(strchr(password, word[i]) == NULL && strchr(curr -> data, word[i]) != NULL) {
+                    tmp = curr -> next;
+                    // ... delete the word from the filtered list.
+                    *p = delete(*p, curr -> data);
+                    curr = tmp;
+                    break_chk = 1;
+                    break;
                 }
             }
-            if(!break_chk) {
+            if(!break_chk)
                 curr = curr -> next;
-                break_chk = 0;
-            }
         }
     }
 }
@@ -458,16 +462,16 @@ void occurrences_check(list *p, char c, int count, int len, int strict) {
 void new_words_check(list *r, list *f, char *new_word, int len) {
     list curr = *r;
     while(curr != NULL) {
-        for(int i = 0; i < len; ++i) {
+        for (int i = 0; i < len; ++i) {
             if(curr -> guide[i] == '+' && new_word[i] != curr -> data[i])
                 return;
             if((curr -> guide[i] == '|' || curr -> guide[i] == '/') && new_word[i] == curr -> data[i])
                 return;
         }
-        curr = curr -> next;
+        curr = curr->next;
     }
-    // If the function did not stop its execution, then the word can be added to the filtered list.
-    *f = add_sort(*f, new_word);
+    // If the function did not stop its execution, then it's time to check for occurrences.
+    new_occurrence_check(r, f, new_word, len);
 }
 
 list add_res(list l, char *word, char *guide) {
@@ -486,4 +490,48 @@ list destroy(list l) {
         curr = tmp;
     }
     return NULL;
+}
+
+void new_occurrence_check(list *r, list *f, const char *new_word, int len) {
+    list curr = *r;
+    char tmp_chr;
+    int misplaced, wrong, ok, count;
+    while(curr != NULL) {
+        for(int i = 0; i < len; ++i) {
+            // If a character is correct in the word (even if in the wrong spot)...
+            if(curr -> guide[i] == '+' || curr -> guide[i] == '|') {
+                // ... mark that character and count its occurrences
+                tmp_chr = curr -> data[i];
+                misplaced = 0;
+                wrong = 0;
+                ok = 0;
+                count = 0;
+                for(int j = 0; j < len; ++j) {
+                    if(curr -> data[j] == tmp_chr) {
+                        if(curr -> guide[j] == '+')
+                            ++ok;
+                        if(curr -> guide[j] == '|')
+                            ++misplaced;
+                        if(curr -> guide[j] == '/')
+                            ++wrong;
+                    }
+                }
+                // The occurrences of the character 'tmp_chr' are counted in the new word
+                for(int j = 0; j < len; ++j)
+                    if(new_word[j] == tmp_chr)
+                        ++count;
+                // If there are no wrong characters, then the check is not strict (there are *at least* 'count'
+                // characters).
+                if(!wrong && count < (ok + misplaced))
+                    return;
+                // If there are wrong characters, then the check is strict (there are *exactly* 'count' characters).
+                if(wrong > 0 && count != (ok + misplaced))
+                    return;
+
+            }
+        }
+        curr = curr -> next;
+    }
+    // If the function did not return, then the word can be added to the filtered list
+    *f = add_sort(*f, new_word);
 }
