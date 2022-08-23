@@ -17,20 +17,22 @@ struct check {
 
 typedef struct node *list;
 
+// List management functions
 int list_size(list l);
 list add_sort(list l, const char *new_data);
 void print(list l);
 list delete(list l, char *to_delete);
 list search(list l, char *query);
 list duplicate(list l);
-void empty_buffer(char *b);
+list add_res(list l, char *word, char *guide);
+list destroy(list l);
+
+// Game functions
 list add_new_words(list l, list *f, list *r, int len, int postgame);
 struct check word_check(char *password, char *buffer, char *guide, int word_length, struct check status, list *p);
 void res_check(const char *word, int len, const char *guide, list *p, const char *password);
 void occurrences_check(list *p, char c, int count, int len, int strict);
 void new_words_check(list *r, list *f, char *new_word, int len);
-list add_res(list l, char *word, char *guide);
-list destroy(list l);
 void new_occurrence_check(list *r, list *f, const char *new_word, int len);
 
 int main() {
@@ -73,7 +75,7 @@ int main() {
     list *lr = &restrictions;
 
     // If the word has been input before, the password is saved.
-    empty_buffer(buffer);
+    memset(buffer, 0, sizeof(&buffer));
     if(scanf("%s", buffer) != 0) {
         if(search(wordlist, buffer) != NULL)
             password = strdup(buffer);
@@ -96,20 +98,20 @@ int main() {
                 // the "add_new_words" function.
                 if(strcmp(buffer, "+inserisci_inizio") == 0) {
                     wordlist = add_new_words(wordlist, lp, lr, word_length, 0);
-                    empty_buffer(buffer);
+                    memset(buffer, 0, sizeof(&buffer));
                     continue;
                 }
                 // If "+stampa_filtrate" is called, the filtered list is printed on the screen.
                 else if(strcmp(buffer, "+stampa_filtrate") == 0) {
                     print(filtered);
-                    empty_buffer(buffer);
+                    memset(buffer, 0, sizeof(&buffer));
                     continue;
                 }
                 // If the word is not of the correct length or it does not appear in the wordlist,
                 // no tries are consumed and the user can retry.
                 else if(strlen(buffer) != word_length || search(wordlist, buffer) == NULL) {
                     printf("not_exists\n");
-                    empty_buffer(buffer);
+                    memset(buffer, 0, sizeof(&buffer));
                     continue;
                 }
                 // If none of the checks before this get triggered, the word is checked for correctness.
@@ -119,7 +121,7 @@ int main() {
                         filtered = delete(filtered, buffer);
                         restrictions = add_res(restrictions, buffer, guide);
                         res_check(buffer, word_length, guide, lp, password);
-                        empty_buffer(buffer);
+                        memset(buffer, 0, sizeof(&buffer));
                         for (int i = 0; i < word_length; ++i)
                             printf("%c", guide[i]);
                         printf("\n%d\n", list_size(filtered));
@@ -133,7 +135,7 @@ int main() {
                 if(status.ok) printf("ok\n");
                 if(!status.tries) printf("ko\n");
                 status.ok = 0;
-                empty_buffer(buffer);
+                memset(buffer, 0, sizeof(&buffer));
                 restrictions = destroy(restrictions);
                 // The user can manage settings while in this loop, until they decide to start a new game.
                 while(!restart) {
@@ -143,7 +145,7 @@ int main() {
                             wordlist = add_new_words(wordlist, lp, lr, word_length, 1);
                         if(strcmp(buffer, "+nuova_partita") == 0) {
                             filtered = duplicate(wordlist);
-                            empty_buffer(buffer);
+                            memset(buffer, 0, sizeof(&buffer));
                             if(scanf("%s", buffer) != 0)
                                 if(search(wordlist, buffer) != NULL)
                                     password = strdup(buffer);
@@ -158,6 +160,8 @@ int main() {
     // Terminates the program
     return 0;
 }
+
+// List function definitions
 
 int list_size(list l) {
     list curr = l;
@@ -195,16 +199,6 @@ list add_sort(list l, const char *new_data) {
                     return l;
                 } else return tmp;
                 //If the strings are the same, add it in the next node (it keeps the algorithm stable)
-            } else if(strcmp(new_data, curr -> data) == 0) {
-                prev = curr;
-                curr = curr -> next;
-                list tmp = malloc(sizeof(struct node));
-                tmp -> data = strdup(new_data);
-                tmp -> guide = NULL;
-                tmp -> next = curr;
-                prev -> next = tmp;
-                return l;
-                //Otherwise, just keep searching the list
             } else {
                 prev = curr;
                 curr = curr -> next;
@@ -278,10 +272,25 @@ list duplicate(list l) {
     return head;
 }
 
-void empty_buffer(char *b) {
-    for(int i = 0; i < BUFSIZE; ++i)
-        b[i] = '\0';
+list add_res(list l, char *word, char *guide) {
+    list tmp = malloc(sizeof(struct node));
+    tmp -> data = strdup(word);
+    tmp -> guide = strdup(guide);
+    tmp -> next = l;
+    return tmp;
 }
+
+list destroy(list l) {
+    list curr = l, tmp = NULL;
+    while(curr != NULL) {
+        tmp = curr -> next;
+        free(curr);
+        curr = tmp;
+    }
+    return NULL;
+}
+
+// Game function definitions
 
 list add_new_words(list l, list *f, list *r, int len, int postgame) {
     char *buffer = calloc(BUFSIZE, sizeof(char));
@@ -296,7 +305,7 @@ list add_new_words(list l, list *f, list *r, int len, int postgame) {
                     new_words_check(r, f, buffer, len);
             }
         }
-        empty_buffer(buffer);
+        memset(buffer, 0, sizeof(&buffer));
     }
     return l;
 }
@@ -307,8 +316,7 @@ struct check word_check(char *password, char *buffer, char *guide, int word_leng
         status.ok = 1;
     else {
         // Empty guide buffer
-        for(int i = 0; i < word_length; ++i)
-            guide[i] = '\0';
+        memset(guide, 0, sizeof(&guide));
         // Wrong word: one try is subtracted to the counter.
         --status.tries;
         for(int i = 0; i < word_length; ++i) {
@@ -472,24 +480,6 @@ void new_words_check(list *r, list *f, char *new_word, int len) {
     }
     // If the function did not stop its execution, then it's time to check for occurrences.
     new_occurrence_check(r, f, new_word, len);
-}
-
-list add_res(list l, char *word, char *guide) {
-    list tmp = malloc(sizeof(struct node));
-    tmp -> data = strdup(word);
-    tmp -> guide = strdup(guide);
-    tmp -> next = l;
-    return tmp;
-}
-
-list destroy(list l) {
-    list curr = l, tmp = NULL;
-    while(curr != NULL) {
-        tmp = curr -> next;
-        free(curr);
-        curr = tmp;
-    }
-    return NULL;
 }
 
 void new_occurrence_check(list *r, list *f, const char *new_word, int len) {
