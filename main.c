@@ -106,7 +106,7 @@ int main() {
                     memset(buffer, 0, sizeof(&buffer));
                     continue;
                 }
-                // If the word is not of the correct length or it does not appear in the wordlist,
+                // If the word is not of the correct length, or it does not appear in the wordlist,
                 // no tries are consumed and the user can retry.
                 else if(strlen(buffer) != word_length || search(wordlist, buffer) == NULL) {
                     printf("not_exists\n");
