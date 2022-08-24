@@ -33,7 +33,6 @@ struct check word_check(char *password, char *buffer, char *guide, int word_leng
 void res_check(const char *word, int len, const char *guide, list *p, const char *password);
 void occurrences_check(list *p, char c, int count, int len, int strict);
 void new_words_check(list *r, list *f, char *new_word, int len);
-void new_occurrence_check(list *r, list *f, const char *new_word, int len);
 
 int main() {
     // Variable declarations
@@ -469,25 +468,14 @@ void occurrences_check(list *p, char c, int count, int len, int strict) {
 
 void new_words_check(list *r, list *f, char *new_word, int len) {
     list curr = *r;
+    char tmp_chr;
+    int misplaced, wrong, ok, count;
     while(curr != NULL) {
         for (int i = 0; i < len; ++i) {
             if(curr -> guide[i] == '+' && new_word[i] != curr -> data[i])
                 return;
             if((curr -> guide[i] == '|' || curr -> guide[i] == '/') && new_word[i] == curr -> data[i])
                 return;
-        }
-        curr = curr->next;
-    }
-    // If the function did not stop its execution, then it's time to check for occurrences.
-    new_occurrence_check(r, f, new_word, len);
-}
-
-void new_occurrence_check(list *r, list *f, const char *new_word, int len) {
-    list curr = *r;
-    char tmp_chr;
-    int misplaced, wrong, ok, count;
-    while(curr != NULL) {
-        for(int i = 0; i < len; ++i) {
             // If a character is correct in the word (even if in the wrong spot)...
             if(curr -> guide[i] == '+' || curr -> guide[i] == '|') {
                 // ... mark that character and count its occurrences
@@ -505,11 +493,9 @@ void new_occurrence_check(list *r, list *f, const char *new_word, int len) {
                         if(curr -> guide[j] == '/')
                             ++wrong;
                     }
-                }
-                // The occurrences of the character 'tmp_chr' are counted in the new word
-                for(int j = 0; j < len; ++j)
                     if(new_word[j] == tmp_chr)
                         ++count;
+                }
                 // If there are no wrong characters, then the check is not strict (there are *at least* 'count'
                 // characters).
                 if(!wrong && count < (ok + misplaced))
@@ -520,7 +506,7 @@ void new_occurrence_check(list *r, list *f, const char *new_word, int len) {
 
             }
         }
-        curr = curr -> next;
+        curr = curr->next;
     }
     // If the function did not return, then the word can be added to the filtered list
     *f = add_sort(*f, new_word);
