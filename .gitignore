@@ -91,3 +91,6 @@ fabric.properties
 
 # Output folder for tests
 .output/*
+
+# Run test script
+runtest.sh
