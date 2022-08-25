@@ -401,6 +401,15 @@ void res_check(const char *word, int len, const char *guide, list *f, const char
         while(curr != NULL) {
             for(int i = 0; i < len; ++i) {
                 break_chk = 0;
+                // If the character does not appear in the password at all...
+                if(strchr(password, word[i]) == NULL && strchr(curr -> data, word[i]) != NULL) {
+                    tmp = curr -> next;
+                    // ... delete the word from the filtered list.
+                    *f = delete(*f, curr -> data);
+                    curr = tmp;
+                    break_chk = 1;
+                    break;
+                }
                 // If the player guessed a character right but the word in the list does not have that same character
                 // in the same position...
                 if(guide[i] == '+' && word[i] != curr -> data[i]) {
@@ -414,15 +423,6 @@ void res_check(const char *word, int len, const char *guide, list *f, const char
                 // If the player guessed a character wrong and a word in the list has that same character
                 // in the same position...
                 if((guide[i] == '|' || guide[i] == '/') && word[i] == curr -> data[i]) {
-                    tmp = curr -> next;
-                    // ... delete the word from the filtered list.
-                    *f = delete(*f, curr -> data);
-                    curr = tmp;
-                    break_chk = 1;
-                    break;
-                }
-                // If the character does not appear in the password at all...
-                if(strchr(password, word[i]) == NULL && strchr(curr -> data, word[i]) != NULL) {
                     tmp = curr -> next;
                     // ... delete the word from the filtered list.
                     *f = delete(*f, curr -> data);
@@ -502,7 +502,6 @@ void new_words_check(list *r, list *f, char *new_word, int len) {
                 // If there are wrong characters, then the check is strict (there are *exactly* 'count' characters).
                 if(wrong > 0 && count != (ok + misplaced))
                     return;
-
             }
         }
         curr = curr->next;
