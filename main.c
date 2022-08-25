@@ -121,9 +121,8 @@ int main() {
                         restrictions = add_res(restrictions, buffer, guide);
                         res_check(buffer, word_length, guide, lf, password);
                         memset(buffer, 0, sizeof(&buffer));
-                        for (int i = 0; i < word_length; ++i)
-                            printf("%c", guide[i]);
-                        printf("\n%d\n", list_size(filtered));
+                        printf("%s\n", guide);
+                        printf("%d\n", list_size(filtered));
                         if(status.tries != 0) continue;
                     }
                 }
