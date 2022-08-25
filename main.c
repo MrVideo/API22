@@ -10,11 +10,6 @@ struct node {
     struct node *next;
 };
 
-struct check {
-    int ok;
-    int tries;
-};
-
 typedef struct node *list;
 
 // List management functions
@@ -28,8 +23,8 @@ list add_res(list l, char *word, char *guide);
 list destroy(list l);
 
 // Game functions
-list add_new_words(list l, list *f, list *r, int len, int postgame);
-struct check word_check(char *password, char *buffer, char *guide, int len, struct check status, list *f);
+void add_new_words(list *l, list *f, list *r, int len, int postgame);
+void word_check(char *password, char *buffer, char *guide, int len, int *tp, list *f);
 void res_check(const char *word, int len, const char *guide, list *f, const char *password);
 void occurrences_check(list *f, char c, int count, int len, int strict);
 void new_words_check(list *r, list *f, char *new_word, int len);
@@ -39,15 +34,11 @@ int main() {
     char *buffer = calloc(BUFSIZE, sizeof(char));
     char *password = calloc(BUFSIZE, sizeof(char));
     char *guide = calloc(BUFSIZE, sizeof(char));
-    int word_length, cmd_chk = 0, restart;
-    struct check status;
+    int word_length, cmd_chk = 0, restart, ok = 0, tries = 0;
+    int *tp = &tries;
     list wordlist = NULL;
     list filtered = NULL;
     list restrictions = NULL;
-
-    // Check struct initialisation
-    status.ok = 0;
-    status.tries = 0;
 
     // -- Game setup --
     // This is only run once.
@@ -70,6 +61,7 @@ int main() {
     // The word list is duplicated to create the filtered word list.
     filtered = duplicate(wordlist);
     // Declaration of pointer to list
+    list *lw = &wordlist;
     list *lf = &filtered;
     list *lr = &restrictions;
 
@@ -81,7 +73,7 @@ int main() {
     }
 
     // Asks the user for the number of tries in the game.
-    if(scanf("%d", &status.tries) != 0) {
+    if(scanf("%d", &tries) != 0) {
 
         // -- Main game loop --
         // This is run until EOF is read from stdin.
@@ -96,7 +88,7 @@ int main() {
                 // If the "+inserisci_inizio" command is passed, new words are added to the wordlist through
                 // the "add_new_words" function.
                 if(strcmp(buffer, "+inserisci_inizio") == 0) {
-                    wordlist = add_new_words(wordlist, lf, lr, word_length, 0);
+                    add_new_words(lw, lf, lr, word_length, 0);
                     memset(buffer, 0, sizeof(&buffer));
                     continue;
                 }
@@ -115,24 +107,25 @@ int main() {
                 }
                 // If none of the checks before this get triggered, the word is checked for correctness.
                 else {
-                    status = word_check(password, buffer, guide, word_length, status, lf);
-                    if(!status.ok && status.tries >= 0) {
+                    if(strcmp(password, buffer) == 0) ok = 1;
+                    else if(tries >= 0) {
+                        word_check(password, buffer, guide, word_length, tp, lf);
                         filtered = delete(filtered, buffer);
                         restrictions = add_res(restrictions, buffer, guide);
                         res_check(buffer, word_length, guide, lf, password);
                         memset(buffer, 0, sizeof(&buffer));
                         printf("%s\n", guide);
                         printf("%d\n", list_size(filtered));
-                        if(status.tries != 0) continue;
+                        if(tries != 0) continue;
                     }
                 }
             }
 
             // Prints the outcome and resets the game.
-            if(status.ok || status.tries == 0) {
-                if(status.ok) printf("ok\n");
-                if(!status.tries) printf("ko\n");
-                status.ok = 0;
+            if(ok || tries == 0) {
+                if(ok) printf("ok\n");
+                if(!tries) printf("ko\n");
+                ok = 0;
                 memset(buffer, 0, sizeof(&buffer));
                 restrictions = destroy(restrictions);
                 // The user can manage settings while in this loop, until they decide to start a new game.
@@ -140,14 +133,14 @@ int main() {
                     if(scanf("%s", buffer) == EOF) break;
                     else {
                         if(strcmp(buffer, "+inserisci_inizio") == 0)
-                            wordlist = add_new_words(wordlist, lf, lr, word_length, 1);
+                            add_new_words(lw, lf, lr, word_length, 1);
                         if(strcmp(buffer, "+nuova_partita") == 0) {
                             filtered = duplicate(wordlist);
                             memset(buffer, 0, sizeof(&buffer));
                             if(scanf("%s", buffer) != 0)
                                 if(search(wordlist, buffer) != NULL)
                                     password = strdup(buffer);
-                            if(scanf("%d", &status.tries) != 0)
+                            if(scanf("%d", &tries) != 0)
                                 restart = 1;
                         }
                     }
@@ -290,7 +283,7 @@ list destroy(list l) {
 
 // Game function definitions
 
-list add_new_words(list l, list *f, list *r, int len, int postgame) {
+void add_new_words(list *l, list *f, list *r, int len, int postgame) {
     char *buffer = calloc(BUFSIZE, sizeof(char));
     int exit = 0;
     while(!exit) {
@@ -298,97 +291,90 @@ list add_new_words(list l, list *f, list *r, int len, int postgame) {
             if(strcmp(buffer, "+inserisci_fine") == 0)
                 exit = 1;
             else if(strlen(buffer) == len) {
-                l = add_sort(l, buffer);
+                *l = add_sort(*l, buffer);
                 if(!postgame)
                     new_words_check(r, f, buffer, len);
             }
         }
         memset(buffer, 0, sizeof(&buffer));
     }
-    return l;
 }
 
-struct check word_check(char *password, char *buffer, char *guide, int len, struct check status, list *f) {
-    // Correct word
-    if(!strcmp(buffer, password))
-        status.ok = 1;
-    else {
-        // Empty guide buffer
-        memset(guide, 0, sizeof(&guide));
-        // Wrong word: one try is subtracted to the counter.
-        --status.tries;
-        for(int i = 0; i < len; ++i) {
-            // Correct character check
-            if(password[i] == buffer[i])
-                guide[i] = '+';
-            // Check for character not in string
-            else if(strchr(password, buffer[i]) == NULL)
-                guide[i] = '/';
-        }
-        // Local count variables declaration
-        int pwdc, okc, misplaced, k, l;
-        char tmp_chr;
-        // Misplaced character check
-        for(k = 0; k < len; ++k) {
-            pwdc = 0;          // This counts the occurrences of a character in the password.
-            okc = 0;           // This counts the occurrences of a character in the right spot.
-            misplaced = 0;     // This counts the occurrences of a character in the wrong spot.
-            // If the guide has an empty slot, check whether it should be filled by '|' or '/'.
-            if(guide[k] != '+' && guide[k] != '/') {
-                tmp_chr = buffer[k];
-                for(int j = 0; j < len; ++j) {
-                    if(buffer[j] == tmp_chr && password[j] != tmp_chr)
-                        ++misplaced;
-                    if(buffer[j] == tmp_chr && guide[j] == '+')
-                        ++okc;
-                    if(password[j] == tmp_chr)
-                        ++pwdc;
+void word_check(char *password, char *buffer, char *guide, int len, int *tp, list *f) {    
+    // Empty guide buffer
+    memset(guide, 0, sizeof(&guide));
+    // Wrong word: one try is subtracted to the counter.
+    --*tp;
+    for(int i = 0; i < len; ++i) {
+        // Correct character check
+        if(password[i] == buffer[i])
+            guide[i] = '+';
+        // Check for character not in string
+        else if(strchr(password, buffer[i]) == NULL)
+            guide[i] = '/';
+    }
+    // Local count variables declaration
+    int pwdc, okc, misplaced, k, l;
+    char tmp_chr;
+    // Misplaced character check
+    for(k = 0; k < len; ++k) {
+        pwdc = 0;          // This counts the occurrences of a character in the password.
+        okc = 0;           // This counts the occurrences of a character in the right spot.
+        misplaced = 0;     // This counts the occurrences of a character in the wrong spot.
+        // If the guide has an empty slot, check whether it should be filled by '|' or '/'.
+        if(guide[k] != '+' && guide[k] != '/') {
+            tmp_chr = buffer[k];
+            for(int j = 0; j < len; ++j) {
+                if(buffer[j] == tmp_chr && password[j] != tmp_chr)
+                    ++misplaced;
+                if(buffer[j] == tmp_chr && guide[j] == '+')
+                    ++okc;
+                if(password[j] == tmp_chr)
+                    ++pwdc;
+            }
+            l = k;
+            // If these two values are the same, then the word contains *exactly* 'okc' occurrences of the
+            // character 'tmp_chr'.
+            if(okc == pwdc) {
+                while(misplaced > 0 && l < len) {
+                    if(buffer[l] == tmp_chr && guide[l] != '+') {
+                        guide[l] = '/';
+                        --misplaced;
+                    }
+                    ++l;
                 }
-                l = k;
-                // If these two values are the same, then the word contains *exactly* 'okc' occurrences of the
-                // character 'tmp_chr'.
-                if(okc == pwdc) {
-                    while(misplaced > 0 && l < len) {
-                        if(buffer[l] == tmp_chr && guide[l] != '+') {
+                occurrences_check(f, tmp_chr, okc, len, 1);
+            }
+
+            // If this condition is true, then the word contains *exactly* 'okc' + 'misplaced'
+            // occurrences of the character 'tmp_chr'.
+            else if(pwdc > okc) {
+                // Temporary value to store how many characters are correct but in the wrong spot
+                int wrong = 0;
+                // Temporary value to store how many characters are not in the word and are "too many"
+                int too_many = 0;
+                while(misplaced > 0 && l < len) {
+                    if(buffer[l] == tmp_chr && guide[l] != '+') {
+                        if(pwdc > okc) {
+                            guide[l] = '|';
+                            --misplaced;
+                            --pwdc;
+                            ++wrong;
+                        } else if(pwdc == okc) {
                             guide[l] = '/';
                             --misplaced;
+                            ++too_many;
                         }
-                        ++l;
                     }
-                    occurrences_check(f, tmp_chr, okc, len, 1);
+                    ++l;
                 }
-
-                // If this condition is true, then the word contains *exactly* 'okc' + 'misplaced'
-                // occurrences of the character 'tmp_chr'.
-                else if(pwdc > okc) {
-                    // Temporary value to store how many characters are correct but in the wrong spot
-                    int wrong = 0;
-                    // Temporary value to store how many characters are not in the word and are "too many"
-                    int too_many = 0;
-                    while(misplaced > 0 && l < len) {
-                        if(buffer[l] == tmp_chr && guide[l] != '+') {
-                            if(pwdc > okc) {
-                                guide[l] = '|';
-                                --misplaced;
-                                --pwdc;
-                                ++wrong;
-                            } else if(pwdc == okc) {
-                                guide[l] = '/';
-                                --misplaced;
-                                ++too_many;
-                            }
-                        }
-                        ++l;
-                    }
-                    if(too_many)
-                        occurrences_check(f, tmp_chr, okc + wrong, len, 1);
-                    else
-                        occurrences_check(f, tmp_chr, okc + wrong, len, 0);
-                }
+                if(too_many)
+                    occurrences_check(f, tmp_chr, okc + wrong, len, 1);
+                else
+                    occurrences_check(f, tmp_chr, okc + wrong, len, 0);
             }
         }
     }
-    return status;
 }
 
 void res_check(const char *word, int len, const char *guide, list *f, const char *password) {
