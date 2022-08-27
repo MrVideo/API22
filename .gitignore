@@ -86,11 +86,5 @@ fabric.properties
 # VS Code config files
 .vscode/*
 
-# Open tests folder
-.tests/*
-
 # Output folder for tests
-.output/*
-
-# Run test script
-runtest.sh
+output/*
