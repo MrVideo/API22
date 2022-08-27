@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/bin/zsh
 
 # Resets the output folder
-rm -rf /workspaces/FinalProject22/.output
-mkdir /workspaces/FinalProject22/.output
+rm -rf $HOME/GitHub/FinalProject22/output
+mkdir $HOME/GitHub/FinalProject22/output
 
 # Compiles the program as a release build
-gcc /workspaces/FinalProject22/main.c -O2 -Wall -Werror -o /workspaces/FinalProject22/build/FinalProject22 > /dev/null 2>&1
+gcc $HOME/GitHub/FinalProject22/main.c -O2 -Wall -Werror -o $HOME/GitHub/FinalProject22/build/FinalProject22 > /dev/null 2>&1
 if [ $? -ne 0 ]; then
     echo "Compilation failed."
     exit 1
@@ -13,8 +13,8 @@ fi
 
 # Runs tests
 echo "Running test 1..."
-/workspaces/FinalProject22/build/FinalProject22 < /workspaces/FinalProject22/.tests/test1.txt > /workspaces/FinalProject22/.output/test1o.txt
-diff /workspaces/FinalProject22/.output/test1o.txt /workspaces/FinalProject22/.tests/test1.output.txt > /dev/null 2>&1
+$HOME/GitHub/FinalProject22/build/FinalProject22 < $HOME/GitHub/FinalProject22/tests/test1.txt > $HOME/GitHub/FinalProject22/output/test1o.txt
+diff $HOME/GitHub/FinalProject22/output/test1o.txt $HOME/GitHub/FinalProject22/tests/test1.output.txt > /dev/null 2>&1
 if [ $? -eq 0 ]; then
     echo "Test 1 passed"
 else
@@ -22,8 +22,8 @@ else
 fi
 
 echo "Running test 2..."
-/workspaces/FinalProject22/build/FinalProject22 < /workspaces/FinalProject22/.tests/test2.txt > /workspaces/FinalProject22/.output/test2o.txt
-diff /workspaces/FinalProject22/.output/test2o.txt /workspaces/FinalProject22/.tests/test2.output.txt > /dev/null 2>&1
+$HOME/GitHub/FinalProject22/build/FinalProject22 < $HOME/GitHub/FinalProject22/tests/test2.txt > $HOME/GitHub/FinalProject22/output/test2o.txt
+diff $HOME/GitHub/FinalProject22/output/test2o.txt $HOME/GitHub/FinalProject22/tests/test2.output.txt > /dev/null 2>&1
 if [ $? -eq 0 ]; then
     echo "Test 2 passed"
 else
@@ -31,8 +31,8 @@ else
 fi
 
 echo "Running test 3..."
-/workspaces/FinalProject22/build/FinalProject22 < /workspaces/FinalProject22/.tests/test3.txt > /workspaces/FinalProject22/.output/test3o.txt
-diff /workspaces/FinalProject22/.output/test3o.txt /workspaces/FinalProject22/.tests/test3.output.txt > /dev/null 2>&1
+$HOME/GitHub/FinalProject22/build/FinalProject22 < $HOME/GitHub/FinalProject22/tests/test3.txt > $HOME/GitHub/FinalProject22/output/test3o.txt
+diff $HOME/GitHub/FinalProject22/output/test3o.txt $HOME/GitHub/FinalProject22/tests/test3.output.txt > /dev/null 2>&1
 if [ $? -eq 0 ]; then
     echo "Test 3 passed"
 else
