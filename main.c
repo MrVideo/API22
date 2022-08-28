@@ -24,7 +24,7 @@ list destroy(list l);
 
 // Game functions
 void add_new_words(list *l, list *f, list *r, int len, int postgame);
-void word_check(char *password, char *buffer, char *guide, int len, int *tp, int *pc, list *f, int *wc);
+void word_check(char *password, char *buffer, char *guide, int len, int *tp, int *pc, int *wc, list *f);
 void res_check(const char *word, int len, const char *guide, list *f, const char *password);
 void occurrences_check(list *f, char c, int count, int len, int strict);
 void new_words_check(list *r, list *f, char *new_word, int len);
@@ -115,8 +115,9 @@ int main() {
                 else {
                     if(strcmp(password, buffer) == 0) ok = 1;
                     else if(tries >= 0) {
+                        memset(wc, 0, BUFSIZE * sizeof(int));
                         char_count(wc,buffer, word_length);
-                        word_check(password, buffer, guide, word_length, tp, pc, lf, wc);
+                        word_check(password, buffer, guide, word_length, tp, pc, wc, lf);
                         filtered = delete(filtered, buffer);
                         restrictions = add_res(restrictions, buffer, guide);
                         res_check(buffer, word_length, guide, lf, password);
@@ -311,19 +312,89 @@ void add_new_words(list *l, list *f, list *r, int len, int postgame) {
     }
 }
 
-void word_check(char *password, char *buffer, char *guide, int len, int *tp, int *pc, list *f, int *wc) {
+void word_check(char *password, char *buffer, char *guide, int len, int *tp, int *pc, int *wc, list *f) {
     // Empty guide buffer
     memset(guide, 0, len);
     // Wrong word: one try is subtracted to the counter.
     --*tp;
     int pwd, count;
-    char *b = buffer, *p = password, tmp;
+    char tmp;
     for (int i = 0; i < len; ++i) {
-        tmp = buffer[i];
-        pwd = char_check(pc, tmp);
-        count = char_check(wc, tmp);
-        if (guide[i] != '+' && guide[i] != '|' && guide[i] != '/') {
-            if (count == pwd) {
+        if(guide[i] != '+' && guide[i] != '|' && guide[i] != '/') {
+            tmp = buffer[i];
+            pwd = char_check(pc, tmp);
+            count = char_check(wc, tmp);
+            if(pwd != -1 && count != -1) {
+                char *b = buffer, *p = password;
+                long index;
+                // If these two values are the same, the symbols must be either '+' or '|'.
+                if(pwd == count) {
+                    // While there are more 'tmp' characters in both strings, check whether they are in the same index
+                    // position. If so, mark '+', else mark '|'.
+                    while(b != NULL && p != NULL) {
+                        b = strchr(b, tmp);
+                        p = strchr(p, tmp);
+                        if (b != NULL && p != NULL) {
+                            index = b - buffer;
+                            if (index < len) {
+                                if (index == p - password)
+                                    guide[index] = '+';
+                                else guide[index] = '|';
+                                ++b;
+                                ++p;
+                            }
+                        }
+                    }
+                }
+                // If pwd < count, then some characters in the guide will be '/'.
+                else if(pwd < count) {
+                    // If the password does not contain that character then every instance of it will be '/'.
+                    if(pwd == 0) {
+                        while (b != NULL) {
+                            b = strchr(b, tmp);
+                            if (b != NULL) {
+                                index = b - buffer;
+                                if (index < len)
+                                    guide[index] = '/';
+                                ++b;
+                            }
+                        }
+                    } else {
+                        // While there are more 'tmp' characters in the password, check whether they are in the
+                        // correct position in the buffer.
+                        while(p != NULL) {
+                            b = strchr(b, tmp);
+                            p = strchr(p, tmp);
+                            if (p != NULL) {
+                                index = b - buffer;
+                                if (index < len) {
+                                    if (p - password == index)
+                                        guide[index] = '+';
+                                    else guide[index] = '|';
+                                    ++b;
+                                    ++p;
+                                }
+                            }
+                        }
+                        // When there are no more 'tmp' characters in the password, fill all the other places
+                        // with '/'.
+                        while(b != NULL) {
+                            b = strchr(b, tmp);
+                            if (b != NULL) {
+                                index = b - buffer;
+                                if (index < len) {
+                                    guide[index] = '/';
+                                    ++b;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+/* NEWER
+ * if (pwd == count) {
                 if (password[i] == tmp)
                     guide[i] = '+';
                 else guide[i] = '|';
@@ -354,10 +425,8 @@ void word_check(char *password, char *buffer, char *guide, int len, int *tp, int
                         ++p;
                     }
                 }
-            }
-        }
-    }
-/*
+    }*/
+/* OLDER
     int ok = 0; // This variable will count how many characters are correct
     for(int i = 0; i < len; ++i) {
         // If the current character is not in the password
