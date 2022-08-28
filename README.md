@@ -11,3 +11,9 @@ Quello che ho ideato ieri non era granché perché mi costringeva a ricontare tu
 Oggi ho avuto un'idea diversa: contare i caratteri una volta sola per la password e una volta sola per ogni parola immessa e controllare a partire dalla differenza tra il numero di caratteri in una e nell'altra.
 
 L'idea di base funziona, ma devo ripensare il codice in modo che sia robusto: spesso incontro degli errori di out-of-bounds.
+
+### Update: 12:31
+
+Sono riuscito a rendere robusto l'algoritmo. Ora mancano soltanto i controlli dei vincoli, dopodiché dovrei essere giunto a una soluzione più efficiente.
+
+Grazie dell'aiuto: senza la sua idea non sarei qui.
