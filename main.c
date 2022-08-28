@@ -24,13 +24,13 @@ list destroy(list l);
 
 // Game functions
 void add_new_words(list *l, list *f, list *r, int len, int postgame);
-void word_check(const char *password, char *buffer, char *guide, int len, int *tp, int *pc, list *f);
+void word_check(char *password, char *buffer, char *guide, int len, int *tp, int *pc, list *f, int *wc);
 void res_check(const char *word, int len, const char *guide, list *f, const char *password);
 void occurrences_check(list *f, char c, int count, int len, int strict);
 void new_words_check(list *r, list *f, char *new_word, int len);
 void char_delete(list *f, char c, int correct);
-void pwd_char_count(int *pc, const char *password, int len);
-int pwd_char_check(int *pc, char c);
+void char_count(int *bc, const char *word, int len);
+int char_check(int *bc, char c);
 
 int main() {
     // Variable declarations
@@ -39,7 +39,7 @@ int main() {
     char *guide = calloc(BUFSIZE, sizeof(char));
     int word_length, cmd_chk = 0, restart, ok = 0, tries = 0;
     int *tp = &tries;
-    int pc[64] = {0};
+    int pc[64] = {0}, wc[64] = {0};
     list wordlist = NULL;
     list filtered = NULL;
     list restrictions = NULL;
@@ -74,7 +74,7 @@ int main() {
     if(scanf("%s", buffer) != 0) {
         if(search(wordlist, buffer) != NULL) {
             password = strdup(buffer);
-            pwd_char_count(pc, password, word_length);
+            char_count(pc, password, word_length);
         }
     }
 
@@ -115,7 +115,8 @@ int main() {
                 else {
                     if(strcmp(password, buffer) == 0) ok = 1;
                     else if(tries >= 0) {
-                        word_check(password, buffer, guide, word_length, tp, pc, lf);
+                        char_count(wc,buffer, word_length);
+                        word_check(password, buffer, guide, word_length, tp, pc, lf, wc);
                         filtered = delete(filtered, buffer);
                         restrictions = add_res(restrictions, buffer, guide);
                         res_check(buffer, word_length, guide, lf, password);
@@ -148,7 +149,7 @@ int main() {
                                 if(search(wordlist, buffer) != NULL) {
                                     password = strdup(buffer);
                                     memset(pc, 0, BUFSIZE * sizeof(int));
-                                    pwd_char_count(pc, password, word_length);
+                                    char_count(pc, password, word_length);
                                 }
                             if(scanf("%d", &tries) != 0)
                                 restart = 1;
@@ -310,15 +311,57 @@ void add_new_words(list *l, list *f, list *r, int len, int postgame) {
     }
 }
 
-void word_check(const char *password, char *buffer, char *guide, int len, int *tp, int *pc, list *f) {
+void word_check(char *password, char *buffer, char *guide, int len, int *tp, int *pc, list *f, int *wc) {
     // Empty guide buffer
     memset(guide, 0, len);
     // Wrong word: one try is subtracted to the counter.
     --*tp;
+    int pwd, count;
+    char *b = buffer, *p = password, tmp;
+    for (int i = 0; i < len; ++i) {
+        tmp = buffer[i];
+        pwd = char_check(pc, tmp);
+        count = char_check(wc, tmp);
+        if (guide[i] != '+' && guide[i] != '|' && guide[i] != '/') {
+            if (count == pwd) {
+                if (password[i] == tmp)
+                    guide[i] = '+';
+                else guide[i] = '|';
+            } else if (pwd < count) {
+                while (count > 0) {
+                    p = strchr(p, tmp);
+                    b = strchr(b, tmp);
+                    if (p == NULL && b != NULL) {
+                        guide[b - buffer] = '/';
+                        --count;
+                        ++b;
+                        p = password;
+                    } else {
+                        if (p - password == b - buffer) {
+                            guide[b - buffer] = '+';
+                            --pwd;
+                            --count;
+                        } else {
+                            if (count > pwd) {
+                                guide[b - buffer] = '|';
+                                --count;
+                            } else {
+                                guide[b - buffer] = '/';
+                                --count;
+                            }
+                        }
+                        ++b;
+                        ++p;
+                    }
+                }
+            }
+        }
+    }
+/*
     int ok = 0; // This variable will count how many characters are correct
     for(int i = 0; i < len; ++i) {
         // If the current character is not in the password
-        if(pwd_char_check(pc, buffer[i]) == 0) {
+        if(char_check(pc, buffer[i]) == 0) {
             guide[i] = '/';
             char_delete(f, buffer[i], 0);
         } else {
@@ -349,9 +392,9 @@ void word_check(const char *password, char *buffer, char *guide, int len, int *t
                 }
             }
             // If there are more 'tmp' characters in the buffer than there are in the password
-            if(count > pwd_char_check(pc, tmp)) {
+            if(count > char_check(pc, tmp)) {
                 int l = len - 1;
-                int instances = pwd_char_check(pc, tmp);
+                int instances = char_check(pc, tmp);
                 while(count > instances && l >= 0) {
                     // If an index is saved in the temporary array and there are still more 'tmp' characters in buffer
                     // than in the password
@@ -375,6 +418,7 @@ void word_check(const char *password, char *buffer, char *guide, int len, int *t
         }
         ++bp;
     }
+*/
 }
 
 void res_check(const char *word, int len, const char *guide, list *f, const char *password) {
@@ -523,26 +567,26 @@ void char_delete(list *f, char c, int correct) {
     }
 }
 
-void pwd_char_count(int *pc, const char *password, int len) {
+void char_count(int *bc, const char *word, int len) {
     for(int i = 0; i < len; ++i) {
-        if(password[i] == '-')
-            ++pc[0];
-        if(password[i] >= '0' && password[i] <= '9')
-            ++pc[password[i] - 47];
-        if(password[i] >= 'A' && password[i] <= 'Z')
-            ++pc[password[i] - 54];
-        if(password[i] == '_')
-            ++pc[37];
-        if(password[i] >= 'a' && password[i] <= 'z')
-            ++pc[password[i] - 59];
+        if(word[i] == '-')
+            ++bc[0];
+        if(word[i] >= '0' && word[i] <= '9')
+            ++bc[word[i] - 47];
+        if(word[i] >= 'A' && word[i] <= 'Z')
+            ++bc[word[i] - 54];
+        if(word[i] == '_')
+            ++bc[37];
+        if(word[i] >= 'a' && word[i] <= 'z')
+            ++bc[word[i] - 59];
     }
 }
 
-int pwd_char_check(int *pc, char c) {
-    if(c == '-') return pc[0];
-    if(c >= '0' && c <= '9') return pc[c - 47];
-    if(c >= 'A' && c <= 'Z') return pc[c - 54];
-    if(c == '_') return pc[37];
-    if(c >= 'a' && c <= 'z') return pc[c - 59];
+int char_check(int *bc, char c) {
+    if(c == '-') return bc[0];
+    if(c >= '0' && c <= '9') return bc[c - 47];
+    if(c >= 'A' && c <= 'Z') return bc[c - 54];
+    if(c == '_') return bc[37];
+    if(c >= 'a' && c <= 'z') return bc[c - 59];
     return -1;
 }
