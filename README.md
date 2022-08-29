@@ -4,16 +4,8 @@
 
 Per @stefanocastlgioni:
 
-Ho provato a ideare un nuovo algoritmo ieri seguendo i suggerimenti che mi hai dato.
+Sono riuscito a implementare tutto ciò che avevo detto l'altro giorno.
 
-Quello che ho ideato ieri non era granché perché mi costringeva a ricontare tutte le volte i caratteri delle parole, cosa che mi portava a tornare all'algoritmo iniziale.
+Il tempo di esecuzione è grandemente diminuito, ma comunque non sufficientemente.
 
-Oggi ho avuto un'idea diversa: contare i caratteri una volta sola per la password e una volta sola per ogni parola immessa e controllare a partire dalla differenza tra il numero di caratteri in una e nell'altra.
-
-L'idea di base funziona, ma devo ripensare il codice in modo che sia robusto: spesso incontro degli errori di out-of-bounds.
-
-### Update: 12:31
-
-Sono riuscito a rendere robusto l'algoritmo. Ora mancano soltanto i controlli dei vincoli, dopodiché dovrei essere giunto a una soluzione più efficiente.
-
-Grazie dell'aiuto: senza la sua idea non sarei qui.
+L'unica cosa che resta da fare ora penso sia cambiare struttura dati.
