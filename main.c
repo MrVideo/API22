@@ -25,11 +25,9 @@ typedef struct res_node *res_list;
 int list_size(list l);
 list add_sort(list l, const char *new_data);
 void print(list l);
-void debug_print(list l);
-void res_debug_print(res_list r);
 list search(list l, char *query);
 list duplicate(list l);
-void add_res(res_list *r, char c, int index, int correct, int count, int exact);
+res_list add_res(res_list r, char c, int index, int correct, int count, int exact);
 list destroy(list l);
 res_list res_destroy(res_list r);
 
@@ -102,8 +100,6 @@ int main() {
             if(scanf("%s", buffer) == EOF)
                 break;
             else {
-                // TODO Remove debug print
-                res_debug_print(restrictions);
                 // If the "+inserisci_inizio" command is passed, new words are added to the wordlist through
                 // the "add_new_words" function.
                 if(strcmp(buffer, "+inserisci_inizio") == 0) {
@@ -147,9 +143,6 @@ int main() {
                 memset(buffer, 0, BUFSIZE);
                 restrictions = res_destroy(restrictions);
                 filtered = destroy(filtered);
-                // TODO Remove these debug prints
-                /*res_debug_print(restrictions);
-                debug_print(filtered);*/
                 // The user can manage settings while in this loop, until they decide to start a new game.
                 while(!restart) {
                     if(scanf("%s", buffer) == EOF) break;
@@ -239,15 +232,6 @@ void print(list l) {
     }
 }
 
-void debug_print(list l) {
-    list curr = l;
-    while(curr != NULL) {
-        printf("%s -> \n", curr -> data);
-        curr = curr -> next;
-    }
-    printf("END\n");
-}
-
 list search(list l, char *query) {
     list curr = l;
     while(curr != NULL) {
@@ -274,14 +258,15 @@ list duplicate(list l) {
     return head;
 }
 
-void add_res(res_list *r, char c, int index, int correct, int count, int exact) {
+res_list add_res(res_list r, char c, int index, int correct, int count, int exact) {
     res_list tmp = malloc(sizeof(struct res_node));
     tmp->c = c;
     tmp->index = index;
     tmp->correct = correct;
     tmp->count = count;
     tmp->exact = exact;
-    tmp->next = *r;
+    tmp->next = r;
+    return tmp;
 }
 
 list destroy(list l) {
@@ -359,7 +344,7 @@ void word_check(char *password, char *buffer, char *guide, int len, int *tp, int
                                             if (index == p_index) {
                                                 guide[index] = '+';
                                                 delete_index((int) index, tmp, f, 1);
-                                                add_res(r, tmp, (int) index, 1, -1, -1);
+                                                *r = add_res(*r, tmp, (int) index, 1, -1, -1);
                                                 found = 1;
                                             }
                                         }
@@ -369,14 +354,14 @@ void word_check(char *password, char *buffer, char *guide, int len, int *tp, int
                                 if (!found) {
                                     guide[index] = '|';
                                     delete_index((int) index, tmp, f, 0);
-                                    add_res(r, tmp, (int) index, 0, -1, -1);
+                                    *r = add_res(*r, tmp, (int) index, 0, -1, -1);
                                 }
                             }
                             ++b;
                         }
                     }
                     occurrences_check(f, tmp, count, 0);
-                    add_res(r, tmp, -1, -1, count, 0);
+                    *r = add_res(*r, tmp, -1, -1, count, 0);
                 }
                 // If pwd < count, then some characters in the guide will be '/'.
                 else {
@@ -396,7 +381,7 @@ void word_check(char *password, char *buffer, char *guide, int len, int *tp, int
                         // This function deletes all the words that contain characters that do not appear in the
                         // password anywhere.
                         char_delete(f, tmp, 0);
-                        add_res(r, tmp, -1, -1, 0, -1);
+                        *r = add_res(*r, tmp, -1, -1, 0, -1);
                     } else {
                         // While there are more 'tmp' characters in the password, check whether they are in the
                         // correct position in the buffer.
@@ -415,7 +400,7 @@ void word_check(char *password, char *buffer, char *guide, int len, int *tp, int
                                 if(index == p_index) {
                                     guide[index] = '+';
                                     delete_index((int)index, tmp, f, 1);
-                                    add_res(r, tmp, (int)index, 1, -1, -1);
+                                    *r = add_res(*r, tmp, (int)index, 1, -1, -1);
                                     --pwd_tmp;
                                     --count_tmp;
                                     ++b;
@@ -440,7 +425,7 @@ void word_check(char *password, char *buffer, char *guide, int len, int *tp, int
                                 if (guide[index] != '+') {
                                     guide[index] = '|';
                                     delete_index((int) index, tmp, f, 0);
-                                    add_res(r, tmp, (int) index, 0, -1, -1);
+                                    *r = add_res(*r, tmp, (int) index, 0, -1, -1);
                                     --pwd_tmp;
                                 }
                                 ++b;
@@ -457,7 +442,7 @@ void word_check(char *password, char *buffer, char *guide, int len, int *tp, int
                                 if(guide[index] != '+' && guide[index] != '|') {
                                     guide[index] = '/';
                                     delete_index((int) index, tmp, f, 0);
-                                    add_res(r, tmp, (int) index, 0, -1, -1);
+                                    *r = add_res(*r, tmp, (int) index, 0, -1, -1);
                                     --count_tmp;
                                 }
                                 ++b;
@@ -465,7 +450,7 @@ void word_check(char *password, char *buffer, char *guide, int len, int *tp, int
                         }
                     }
                     occurrences_check(f, tmp, pwd, 1);
-                    add_res(r, tmp, -1, -1, pwd, 1);
+                    *r = add_res(*r, tmp, -1, -1, pwd, 1);
                 }
             }
         }
@@ -642,13 +627,4 @@ void delete_index(int i, char c, list *f, int correct) {
             curr = curr->next;
         }
     }
-}
-
-void res_debug_print(res_list r) {
-    res_list curr = r;
-    while(curr != NULL) {
-        printf("%c -> \n", curr -> c);
-        curr = curr -> next;
-    }
-    printf("END\n");
 }
