@@ -24,18 +24,20 @@ typedef struct res_node *res_list;
 // List management functions
 int list_size(list l);
 list add_sort(list l, const char *new_data);
+list add(list l, const char *new_data);
 void print(list l);
 list search(list l, char *query);
 list duplicate(list l);
 res_list add_res(res_list r, char c, int index, int correct, int count, int exact);
 list destroy(list l);
 res_list res_destroy(res_list r);
+list duplicate_sort(list f);
 
 // Game functions
-void add_new_words(list *l, list *f, res_list *r, int len, int postgame);
+void add_new_words(list *l, list *f, res_list *r, int len, int postgame, int *sorted);
 void word_check(char *password, char *buffer, char *guide, int len, int *tp, int *pc, int *wc, list *f, res_list *r);
 void occurrences_check(list *f, char c, int count, int strict);
-void new_words_check(res_list *r, list *f, char *new_word);
+void new_words_check(res_list *r, list *f, char *new_word, const int *sorted);
 void char_delete(list *f, char c, int correct);
 void char_count(int *bc, const char *word, int len);
 int char_check(int *bc, char c);
@@ -46,8 +48,8 @@ int main() {
     char *buffer = calloc(BUFSIZE, sizeof(char));
     char *password = calloc(BUFSIZE, sizeof(char));
     char *guide = calloc(BUFSIZE, sizeof(char));
-    int word_length, cmd_chk = 0, restart, ok = 0, tries = 0;
-    int *tp = &tries;
+    int word_length, cmd_chk = 0, restart, ok = 0, tries = 0, sorted = 0;
+    int *tp = &tries, *fs = &sorted;
     int pc[64] = {0}, wc[64] = {0};
     list wordlist = NULL;
     list filtered = NULL;
@@ -66,7 +68,7 @@ int main() {
                 if(strcmp(buffer, "+nuova_partita") == 0)
                     cmd_chk = 1;
                 else
-                    wordlist = add_sort(wordlist, buffer);
+                    wordlist = add(wordlist, buffer);
             }
         }
     }
@@ -103,12 +105,16 @@ int main() {
                 // If the "+inserisci_inizio" command is passed, new words are added to the wordlist through
                 // the "add_new_words" function.
                 if(strcmp(buffer, "+inserisci_inizio") == 0) {
-                    add_new_words(lw, lf, lr, word_length, 0);
+                    add_new_words(lw, lf, lr, word_length, 0, fs);
                     memset(buffer, 0, BUFSIZE);
                     continue;
                 }
                 // If "+stampa_filtrate" is called, the filtered list is printed on the screen.
                 else if(strcmp(buffer, "+stampa_filtrate") == 0) {
+                    if(!sorted) {
+                        filtered = duplicate_sort(filtered);
+                        sorted = 1;
+                    }
                     print(filtered);
                     memset(buffer, 0, BUFSIZE);
                     continue;
@@ -143,12 +149,13 @@ int main() {
                 memset(buffer, 0, BUFSIZE);
                 restrictions = res_destroy(restrictions);
                 filtered = destroy(filtered);
+                sorted = 0;
                 // The user can manage settings while in this loop, until they decide to start a new game.
                 while(!restart) {
                     if(scanf("%s", buffer) == EOF) break;
                     else {
                         if(strcmp(buffer, "+inserisci_inizio") == 0)
-                            add_new_words(lw, lf, lr, word_length, 1);
+                            add_new_words(lw, lf, lr, word_length, 1, fs);
                         if(strcmp(buffer, "+nuova_partita") == 0) {
                             filtered = duplicate(wordlist);
                             memset(buffer, 0, BUFSIZE);
@@ -224,6 +231,13 @@ list add_sort(list l, const char *new_data) {
     return NULL;
 }
 
+list add(list l, const char *new_data) {
+    list tmp = malloc(sizeof(struct node));
+    tmp->data = strdup(new_data);
+    tmp->next = l;
+    return tmp;
+}
+
 void print(list l) {
     list curr = l;
     while(curr != NULL) {
@@ -290,9 +304,19 @@ res_list res_destroy(res_list r) {
     return NULL;
 }
 
+list duplicate_sort(list f) {
+    list curr = f, head = NULL;
+    while(curr != NULL) {
+        head = add_sort(head, curr->data);
+        curr = curr->next;
+    }
+    destroy(f);
+    return head;
+}
+
 // Game function definitions
 
-void add_new_words(list *l, list *f, res_list *r, int len, int postgame) {
+void add_new_words(list *l, list *f, res_list *r, int len, int postgame, int *sorted) {
     char *buffer = calloc(BUFSIZE, sizeof(char));
     int exit = 0;
     while(!exit) {
@@ -300,9 +324,9 @@ void add_new_words(list *l, list *f, res_list *r, int len, int postgame) {
             if(strcmp(buffer, "+inserisci_fine") == 0)
                 exit = 1;
             else if(strlen(buffer) == len) {
-                *l = add_sort(*l, buffer);
+                *l = add(*l, buffer);
                 if(!postgame)
-                    new_words_check(r, f, buffer);
+                    new_words_check(r, f, buffer, sorted);
             }
         }
         memset(buffer, 0, BUFSIZE);
@@ -505,7 +529,7 @@ void occurrences_check(list *f, char c, int count, int strict) {
     }
 }
 
-void new_words_check(res_list *r, list *f, char *new_word) {
+void new_words_check(res_list *r, list *f, char *new_word, const int *sorted) {
     res_list curr = *r;
     while(curr != NULL) {
         if(curr->index != -1) {
@@ -533,7 +557,10 @@ void new_words_check(res_list *r, list *f, char *new_word) {
         curr = curr->next;
     }
     // If the function did not return, the word can be added.
-    *f = add_sort(*f, new_word);
+    if(sorted)
+        *f = add_sort(*f, new_word);
+    else
+        *f = add(*f, new_word);
 }
 
 void char_delete(list *f, char c, int correct) {
