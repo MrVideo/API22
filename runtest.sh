@@ -12,6 +12,24 @@ if [ $? -ne 0 ]; then
 fi
 
 # Runs tests
+echo "Running test 'Insert'..."
+$HOME/GitHub/FinalProject22/build/FinalProject22 < $HOME/GitHub/FinalProject22/tests/insert.txt > $HOME/GitHub/FinalProject22/output/insertout.txt
+diff $HOME/GitHub/FinalProject22/output/insertout.txt $HOME/GitHub/FinalProject22/tests/insert.output.txt > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+    echo "Test 'Insert' passed"
+else
+    echo "Test 'Insert' failed"
+fi
+
+echo "Running test 'Slide'..."
+$HOME/GitHub/FinalProject22/build/FinalProject22 < $HOME/GitHub/FinalProject22/tests/slide.txt > $HOME/GitHub/FinalProject22/output/slideout.txt
+diff $HOME/GitHub/FinalProject22/output/slideout.txt $HOME/GitHub/FinalProject22/tests/slide.output.txt > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+    echo "Test 'Slide' passed"
+else
+    echo "Test 'Slide' failed"
+fi
+
 echo "Running test 1..."
 $HOME/GitHub/FinalProject22/build/FinalProject22 < $HOME/GitHub/FinalProject22/tests/test1.txt > $HOME/GitHub/FinalProject22/output/test1o.txt
 diff $HOME/GitHub/FinalProject22/output/test1o.txt $HOME/GitHub/FinalProject22/tests/test1.output.txt > /dev/null 2>&1
