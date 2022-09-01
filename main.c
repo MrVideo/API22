@@ -35,12 +35,12 @@ list duplicate_sort(list f, int len);
 
 // Game functions
 void add_new_words(list *l, list *f, res_list *r, int len, int postgame, int *sorted);
-void word_check(char *password, char *buffer, char *guide, int len, int *tp, int *pc, int *wc, list *f, res_list *r);
+void word_check(char *password, char *buffer, char *guide, int len, int *tp, short *pc, short *wc, list *f, res_list *r);
 void occurrences_check(list *f, char c, int count, int strict);
 void new_words_check(res_list *r, list *f, char *new_word, const int *sorted, int len);
 void char_delete(list *f, char c, int correct);
-void char_count(int *bc, const char *word, int len);
-int char_check(int *bc, char c);
+void char_count(short *bc, const char *word, int len);
+short char_check(short *bc, char c);
 void delete_index(int i, char c, list *f, int correct);
 
 int main() {
@@ -49,7 +49,7 @@ int main() {
     char *password = NULL, *guide = NULL;
     int word_length, cmd_chk = 0, restart, ok = 0, tries = 0, sorted = 0;
     int *tp = &tries, *fs = &sorted;
-    int pc[64] = {0}, wc[64] = {0};
+    short pc[64] = {0}, wc[64] = {0};
     list wordlist = NULL;
     list filtered = NULL;
     res_list restrictions = NULL;
@@ -68,27 +68,24 @@ int main() {
             if(scanf("%s", buffer) != 0) {
                 if(strcmp(buffer, "+nuova_partita") == 0)
                     cmd_chk = 1;
-                else
+                else {
                     wordlist = add(wordlist, buffer, word_length);
+                    filtered = add(filtered, buffer, word_length);
+                }
                 memset(buffer, 0, BUFSIZE);
             }
         }
     }
 
-    // The word list is duplicated to create the filtered word list.
-    filtered = duplicate(wordlist, word_length);
     // Declaration of pointer to list
     list *lw = &wordlist;
     list *lf = &filtered;
     res_list *lr = &restrictions;
 
     // If the word has been input before, the password is saved.
-    memset(buffer, 0, BUFSIZE);
     if(scanf("%s", buffer) != 0) {
-        if(search(wordlist, buffer) != NULL) {
-            strncpy(password, buffer, word_length + 1);
-            char_count(pc, password, word_length);
-        }
+        strncpy(password, buffer, word_length + 1);
+        char_count(pc, password, word_length);
     }
 
     memset(buffer, 0, BUFSIZE);
@@ -134,7 +131,7 @@ int main() {
                 else {
                     if(strcmp(password, buffer) == 0) ok = 1;
                     else if(tries >= 0) {
-                        memset(wc, 0, BUFSIZE * sizeof(int));
+                        memset(wc, 0, BUFSIZE * sizeof(short));
                         char_count(wc,buffer, word_length);
                         word_check(password, buffer, guide, word_length, tp, pc, wc, lf, lr);
                         memset(buffer, 0, BUFSIZE);
@@ -155,6 +152,7 @@ int main() {
                 restrictions = res_destroy(restrictions);
                 filtered = destroy(filtered);
                 sorted = 0;
+                filtered = duplicate(wordlist, word_length);
                 // The user can manage settings while in this loop, until they decide to start a new game.
                 while(!restart) {
                     if(scanf("%s", buffer) == EOF) break;
@@ -162,14 +160,12 @@ int main() {
                         if(strcmp(buffer, "+inserisci_inizio") == 0)
                             add_new_words(lw, lf, lr, word_length, 1, fs);
                         if(strcmp(buffer, "+nuova_partita") == 0) {
-                            filtered = duplicate(wordlist, word_length);
                             memset(buffer, 0, BUFSIZE);
-                            if(scanf("%s", buffer) != 0)
-                                if(search(wordlist, buffer) != NULL) {
-                                    strncpy(password, buffer, word_length + 1);
-                                    memset(pc, 0, BUFSIZE * sizeof(int));
-                                    char_count(pc, password, word_length);
-                                }
+                            if(scanf("%s", buffer) != 0) {
+                                strncpy(password, buffer, word_length + 1);
+                                memset(pc, 0, BUFSIZE * sizeof(short));
+                                char_count(pc, password, word_length);
+                            }
                             if(scanf("%d", &tries) != 0)
                                 restart = 1;
                         }
@@ -332,8 +328,11 @@ void add_new_words(list *l, list *f, res_list *r, int len, int postgame, int *so
                 exit = 1;
             else if(strlen(buffer) == len) {
                 *l = add(*l, buffer, len);
-                if(!postgame && *r != NULL)
+                if(postgame)
+                    *f = add(*f, buffer, len);
+                else if(r != NULL)
                     new_words_check(r, f, buffer, sorted, len);
+
             }
         }
         memset(buffer, 0, BUFSIZE);
@@ -341,12 +340,12 @@ void add_new_words(list *l, list *f, res_list *r, int len, int postgame, int *so
     free(buffer);
 }
 
-void word_check(char *password, char *buffer, char *guide, int len, int *tp, int *pc, int *wc, list *f, res_list *r) {
+void word_check(char *password, char *buffer, char *guide, int len, int *tp, short *pc, short *wc, list *f, res_list *r) {
     // Empty guide buffer
     memset(guide, 0, len);
     // Wrong word: one try is subtracted to the counter.
     --*tp;
-    int pwd, count;
+    short pwd, count;
     char tmp;
     for (int i = 0; i < len; ++i) {
         if(guide[i] != '+' && guide[i] != '|' && guide[i] != '/') {
@@ -403,10 +402,8 @@ void word_check(char *password, char *buffer, char *guide, int len, int *tp, int
                             b = strchr(b, tmp);
                             if (b != NULL) {
                                 index = b - buffer;
-                                if (index < len) {
+                                if (index < len)
                                     guide[index] = '/';
-                                    delete_index((int)index, tmp, f, 0);
-                                }
                                 ++b;
                             }
                         }
@@ -480,9 +477,9 @@ void word_check(char *password, char *buffer, char *guide, int len, int *tp, int
                                 ++b;
                             }
                         }
+                        occurrences_check(f, tmp, pwd, 1);
+                        *r = add_res(*r, tmp, -1, -1, pwd, 1);
                     }
-                    occurrences_check(f, tmp, pwd, 1);
-                    *r = add_res(*r, tmp, -1, -1, pwd, 1);
                 }
             }
         }
@@ -609,7 +606,7 @@ void char_delete(list *f, char c, int correct) {
     }
 }
 
-void char_count(int *bc, const char *word, int len) {
+void char_count(short *bc, const char *word, int len) {
     for(int i = 0; i < len; ++i) {
         if(word[i] == '-')
             ++bc[0];
@@ -624,7 +621,7 @@ void char_count(int *bc, const char *word, int len) {
     }
 }
 
-int char_check(int *bc, char c) {
+short char_check(short *bc, char c) {
     if(c == '-') return bc[0];
     if(c >= '0' && c <= '9') return bc[c - 47];
     if(c >= 'A' && c <= 'Z') return bc[c - 54];
