@@ -5,8 +5,8 @@
 #define BUFSIZE 64
 
 struct node {
-    char *data;
     struct node *next;
+    char data[];
 };
 
 struct res_node {
@@ -23,21 +23,21 @@ typedef struct res_node *res_list;
 
 // List management functions
 int list_size(list l);
-list add_sort(list l, const char *new_data);
-list add(list l, const char *new_data);
+list add_sort(list l, const char *new_data, int len);
+list add(list l, const char *new_data, int len);
 void print(list l);
 list search(list l, char *query);
-list duplicate(list l);
+list duplicate(list l, int len);
 res_list add_res(res_list r, char c, int index, int correct, int count, int exact);
 list destroy(list l);
 res_list res_destroy(res_list r);
-list duplicate_sort(list f);
+list duplicate_sort(list f, int len);
 
 // Game functions
 void add_new_words(list *l, list *f, res_list *r, int len, int postgame, int *sorted);
 void word_check(char *password, char *buffer, char *guide, int len, int *tp, int *pc, int *wc, list *f, res_list *r);
 void occurrences_check(list *f, char c, int count, int strict);
-void new_words_check(res_list *r, list *f, char *new_word, const int *sorted);
+void new_words_check(res_list *r, list *f, char *new_word, const int *sorted, int len);
 void char_delete(list *f, char c, int correct);
 void char_count(int *bc, const char *word, int len);
 int char_check(int *bc, char c);
@@ -46,8 +46,7 @@ void delete_index(int i, char c, list *f, int correct);
 int main() {
     // Variable declarations
     char *buffer = calloc(BUFSIZE, sizeof(char));
-    char *password = calloc(BUFSIZE, sizeof(char));
-    char *guide = calloc(BUFSIZE, sizeof(char));
+    char *password = NULL, *guide = NULL;
     int word_length, cmd_chk = 0, restart, ok = 0, tries = 0, sorted = 0;
     int *tp = &tries, *fs = &sorted;
     int pc[64] = {0}, wc[64] = {0};
@@ -63,18 +62,21 @@ int main() {
 
     // Starts saving new words to the main word list.
     if(word_length > 0) {
+        password = malloc(sizeof(char) * (word_length + 1));
+        guide = malloc(sizeof(char) * (word_length + 1));
         while(!cmd_chk) {
             if(scanf("%s", buffer) != 0) {
                 if(strcmp(buffer, "+nuova_partita") == 0)
                     cmd_chk = 1;
                 else
-                    wordlist = add(wordlist, buffer);
+                    wordlist = add(wordlist, buffer, word_length);
+                memset(buffer, 0, BUFSIZE);
             }
         }
     }
 
     // The word list is duplicated to create the filtered word list.
-    filtered = duplicate(wordlist);
+    filtered = duplicate(wordlist, word_length);
     // Declaration of pointer to list
     list *lw = &wordlist;
     list *lf = &filtered;
@@ -84,10 +86,12 @@ int main() {
     memset(buffer, 0, BUFSIZE);
     if(scanf("%s", buffer) != 0) {
         if(search(wordlist, buffer) != NULL) {
-            password = strdup(buffer);
+            strncpy(password, buffer, word_length + 1);
             char_count(pc, password, word_length);
         }
     }
+
+    memset(buffer, 0, BUFSIZE);
 
     // Asks the user for the number of tries in the game.
     if(scanf("%d", &tries) != 0) {
@@ -112,7 +116,7 @@ int main() {
                 // If "+stampa_filtrate" is called, the filtered list is printed on the screen.
                 else if(strcmp(buffer, "+stampa_filtrate") == 0) {
                     if(!sorted) {
-                        filtered = duplicate_sort(filtered);
+                        filtered = duplicate_sort(filtered, word_length);
                         sorted = 1;
                     }
                     print(filtered);
@@ -134,8 +138,9 @@ int main() {
                         char_count(wc,buffer, word_length);
                         word_check(password, buffer, guide, word_length, tp, pc, wc, lf, lr);
                         memset(buffer, 0, BUFSIZE);
-                        printf("%s\n", guide);
-                        printf("%d\n", list_size(filtered));
+                        for(int i = 0; i < word_length; ++i)
+                            printf("%c", guide[i]);
+                        printf("\n%d\n", list_size(filtered));
                         if(tries != 0) continue;
                     }
                 }
@@ -157,11 +162,11 @@ int main() {
                         if(strcmp(buffer, "+inserisci_inizio") == 0)
                             add_new_words(lw, lf, lr, word_length, 1, fs);
                         if(strcmp(buffer, "+nuova_partita") == 0) {
-                            filtered = duplicate(wordlist);
+                            filtered = duplicate(wordlist, word_length);
                             memset(buffer, 0, BUFSIZE);
                             if(scanf("%s", buffer) != 0)
                                 if(search(wordlist, buffer) != NULL) {
-                                    password = strdup(buffer);
+                                    strncpy(password, buffer, word_length + 1);
                                     memset(pc, 0, BUFSIZE * sizeof(int));
                                     char_count(pc, password, word_length);
                                 }
@@ -174,6 +179,9 @@ int main() {
         }
     }
     // Terminates the program
+    free(buffer);
+    free(password);
+    free(guide);
     return 0;
 }
 
@@ -189,13 +197,13 @@ int list_size(list l) {
     return i;
 }
 
-list add_sort(list l, const char *new_data) {
+list add_sort(list l, const char *new_data, int len) {
     list prev = NULL, curr = l;
 
     //If the list is empty, add the element on top.
     if(l == NULL) {
-        list tmp = malloc(sizeof(struct node));
-        tmp -> data = strdup(new_data);
+        list tmp = malloc(sizeof(struct node) + sizeof(char) * (len + 1));
+        strcpy(tmp->data, new_data);
         tmp -> next = l;
         return tmp;
     } else {
@@ -203,8 +211,8 @@ list add_sort(list l, const char *new_data) {
         while(curr != NULL) {
             //If new_data comes before the current node's data then add it before curr
             if(strcmp(new_data, curr -> data) < 0) {
-                list tmp = malloc(sizeof(struct node));
-                tmp -> data = strdup(new_data);
+                list tmp = malloc(sizeof(struct node) + sizeof(char) * (len + 1));
+                strcpy(tmp->data, new_data);
                 tmp -> next = curr;
                 //If the item goes in the first position, do not try to connect the previous node to it
                 //Otherwise, do it
@@ -220,8 +228,8 @@ list add_sort(list l, const char *new_data) {
         }
         //If the list is over and nothing was added to it, the item goes in last
         if(curr == NULL && prev != NULL) {
-            list tmp = malloc(sizeof(struct node));
-            tmp -> data = strdup(new_data);
+            list tmp = malloc(sizeof(struct node) + sizeof(char) * (len + 1));
+            strcpy(tmp->data, new_data);
             tmp -> next = curr;
             prev -> next = tmp;
             return l;
@@ -231,9 +239,9 @@ list add_sort(list l, const char *new_data) {
     return NULL;
 }
 
-list add(list l, const char *new_data) {
-    list tmp = malloc(sizeof(struct node));
-    tmp->data = strdup(new_data);
+list add(list l, const char *new_data, int len) {
+    list tmp = malloc(sizeof(struct node) + sizeof(char) * (len + 1));
+    strcpy(tmp->data, new_data);
     tmp->next = l;
     return tmp;
 }
@@ -256,11 +264,11 @@ list search(list l, char *query) {
     return NULL;
 }
 
-list duplicate(list l) {
+list duplicate(list l, int len) {
     list curr = l, prev = NULL, head = NULL;
     while(curr != NULL) {
-        list tmp = malloc(sizeof(struct node));
-        tmp -> data = strdup(curr -> data);
+        list tmp = malloc(sizeof(struct node) + sizeof(char) * (len + 1));
+        strcpy(tmp->data, curr->data);
         tmp -> next = NULL;
         if(head == NULL)
             head = tmp;
@@ -287,7 +295,6 @@ list destroy(list l) {
     list curr = l, tmp = NULL;
     while(curr != NULL) {
         tmp = curr -> next;
-        free(curr->data);
         free(curr);
         curr = tmp;
     }
@@ -304,10 +311,10 @@ res_list res_destroy(res_list r) {
     return NULL;
 }
 
-list duplicate_sort(list f) {
+list duplicate_sort(list f, int len) {
     list curr = f, head = NULL;
     while(curr != NULL) {
-        head = add_sort(head, curr->data);
+        head = add_sort(head, curr->data, len);
         curr = curr->next;
     }
     destroy(f);
@@ -324,9 +331,9 @@ void add_new_words(list *l, list *f, res_list *r, int len, int postgame, int *so
             if(strcmp(buffer, "+inserisci_fine") == 0)
                 exit = 1;
             else if(strlen(buffer) == len) {
-                *l = add(*l, buffer);
+                *l = add(*l, buffer, len);
                 if(!postgame)
-                    new_words_check(r, f, buffer, sorted);
+                    new_words_check(r, f, buffer, sorted, len);
             }
         }
         memset(buffer, 0, BUFSIZE);
@@ -529,7 +536,7 @@ void occurrences_check(list *f, char c, int count, int strict) {
     }
 }
 
-void new_words_check(res_list *r, list *f, char *new_word, const int *sorted) {
+void new_words_check(res_list *r, list *f, char *new_word, const int *sorted, int len) {
     res_list curr = *r;
     while(curr != NULL) {
         if(curr->index != -1) {
@@ -558,9 +565,9 @@ void new_words_check(res_list *r, list *f, char *new_word, const int *sorted) {
     }
     // If the function did not return, the word can be added.
     if(sorted)
-        *f = add_sort(*f, new_word);
+        *f = add_sort(*f, new_word, len);
     else
-        *f = add(*f, new_word);
+        *f = add(*f, new_word, len);
 }
 
 void char_delete(list *f, char c, int correct) {
