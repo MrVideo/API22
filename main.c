@@ -332,12 +332,13 @@ void add_new_words(list *l, list *f, res_list *r, int len, int postgame, int *so
                 exit = 1;
             else if(strlen(buffer) == len) {
                 *l = add(*l, buffer, len);
-                if(!postgame)
+                if(!postgame && *r != NULL)
                     new_words_check(r, f, buffer, sorted, len);
             }
         }
         memset(buffer, 0, BUFSIZE);
     }
+    free(buffer);
 }
 
 void word_check(char *password, char *buffer, char *guide, int len, int *tp, int *pc, int *wc, list *f, res_list *r) {
