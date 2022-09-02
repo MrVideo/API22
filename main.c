@@ -34,7 +34,8 @@ list duplicate_sort(list f, int len, int overwrite);
 
 // Game functions
 void add_new_words(list *l, list *f, res_list *r, int len, int postgame, int *sorted, int f_created);
-void word_check(char *password, char *buffer, char *guide, int len, int *tp, short *pc, short *wc, list *f, res_list *r);
+void word_check(char *password, char *buffer, char *guide, int len, int *tp, short *pc, short *wc, list *f, res_list *r,
+                int f_created);
 void occurrences_check(list *f, char c, int count, int strict);
 void new_words_check(res_list *r, list *f, char *new_word, const int *sorted, int len);
 void char_delete(list *f, char c, int correct);
@@ -135,7 +136,7 @@ int main() {
                     else if(tries >= 0) {
                         memset(wc, 0, BUFSIZE * sizeof(short));
                         char_count(wc,buffer, word_length);
-                        word_check(password, buffer, guide, word_length, tp, pc, wc, lf, lr);
+                        word_check(password, buffer, guide, word_length, tp, pc, wc, lf, lr, f_created);
                         if(!f_created) {
                             first_add(lw, lf, lr, word_length, sorted);
                             f_created = 1;
@@ -327,7 +328,8 @@ void add_new_words(list *l, list *f, res_list *r, int len, int postgame, int *so
     free(buffer);
 }
 
-void word_check(char *password, char *buffer, char *guide, int len, int *tp, short *pc, short *wc, list *f, res_list *r) {
+void word_check(char *password, char *buffer, char *guide, int len, int *tp, short *pc, short *wc, list *f, res_list *r,
+                int f_created) {
     // Empty guide buffer
     memset(guide, 0, len);
     // Wrong word: one try is subtracted to the counter.
@@ -361,7 +363,7 @@ void word_check(char *password, char *buffer, char *guide, int len, int *tp, sho
                                         if (p_index < len) {
                                             if (index == p_index) {
                                                 guide[index] = '+';
-                                                delete_index((int) index, tmp, f, 1);
+                                                if(f_created) delete_index((int) index, tmp, f, 1);
                                                 *r = add_res(*r, tmp, (int) index, 1, -1, -1);
                                                 found = 1;
                                             }
@@ -371,14 +373,14 @@ void word_check(char *password, char *buffer, char *guide, int len, int *tp, sho
                                 }
                                 if (!found) {
                                     guide[index] = '|';
-                                    delete_index((int) index, tmp, f, 0);
+                                    if(f_created) delete_index((int) index, tmp, f, 0);
                                     *r = add_res(*r, tmp, (int) index, 0, -1, -1);
                                 }
                             }
                             ++b;
                         }
                     }
-                    occurrences_check(f, tmp, count, 0);
+                    if(f_created) occurrences_check(f, tmp, count, 0);
                     *r = add_res(*r, tmp, -1, -1, count, 0);
                 }
                 // If pwd < count, then some characters in the guide will be '/'.
@@ -396,7 +398,7 @@ void word_check(char *password, char *buffer, char *guide, int len, int *tp, sho
                         }
                         // This function deletes all the words that contain characters that do not appear in the
                         // password anywhere.
-                        char_delete(f, tmp, 0);
+                        if(f_created) char_delete(f, tmp, 0);
                         *r = add_res(*r, tmp, -1, -1, 0, -1);
                     } else {
                         // While there are more 'tmp' characters in the password, check whether they are in the
@@ -415,7 +417,7 @@ void word_check(char *password, char *buffer, char *guide, int len, int *tp, sho
                             if(index < len && p_index < len) {
                                 if(index == p_index) {
                                     guide[index] = '+';
-                                    delete_index((int)index, tmp, f, 1);
+                                    if(f_created) delete_index((int)index, tmp, f, 1);
                                     *r = add_res(*r, tmp, (int)index, 1, -1, -1);
                                     --pwd_tmp;
                                     --count_tmp;
@@ -440,7 +442,7 @@ void word_check(char *password, char *buffer, char *guide, int len, int *tp, sho
                             if(index < len) {
                                 if (guide[index] != '+') {
                                     guide[index] = '|';
-                                    delete_index((int) index, tmp, f, 0);
+                                    if(f_created) delete_index((int) index, tmp, f, 0);
                                     *r = add_res(*r, tmp, (int) index, 0, -1, -1);
                                     --pwd_tmp;
                                 }
@@ -457,14 +459,14 @@ void word_check(char *password, char *buffer, char *guide, int len, int *tp, sho
                             if(index < len) {
                                 if(guide[index] != '+' && guide[index] != '|') {
                                     guide[index] = '/';
-                                    delete_index((int) index, tmp, f, 0);
+                                    if(f_created) delete_index((int) index, tmp, f, 0);
                                     *r = add_res(*r, tmp, (int) index, 0, -1, -1);
                                     --count_tmp;
                                 }
                                 ++b;
                             }
                         }
-                        occurrences_check(f, tmp, pwd, 1);
+                        if(f_created) occurrences_check(f, tmp, pwd, 1);
                         *r = add_res(*r, tmp, -1, -1, pwd, 1);
                     }
                 }
