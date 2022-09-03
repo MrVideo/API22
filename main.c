@@ -3,6 +3,8 @@
 #include <string.h>
 
 #define BUFSIZE 64
+#define RED 'r'
+#define BLACK 'b'
 
 struct node {
     struct node *next;
@@ -18,42 +20,59 @@ struct res_node {
     struct res_node *next;
 };
 
+struct tnode {
+    struct tnode *left, *right, *parent;
+    char color;
+    char data[];
+};
+
 typedef struct node *list;
 typedef struct res_node *res_list;
+typedef struct tnode *tree;
 
 // List management functions
 int list_size(list l);
 list add_sort(list l, const char *new_data, int len);
 list add(list l, const char *new_data, int len);
 void print(list l);
-list search(list l, char *query);
 res_list add_res(res_list r, char c, int index, int correct, int count, int exact);
 list destroy(list l);
 res_list res_destroy(res_list r);
-list duplicate_sort(list f, int len, int overwrite);
+
+// Red-Black Tree management functions
+void print_tree(tree t);
+tree rbt_search(tree t, const char data[]);
+void rbt_insert(tree *t, const char *data, int len);
+void left_rotate(tree *root, tree *node);
+void right_rotate(tree *root, tree *node);
+void rbt_insert_fixup(tree *t, tree *node_to_fix);
+void add_to_list(tree *t, list *f, res_list *r, int len);
 
 // Game functions
-void add_new_words(list *l, list *f, res_list *r, int len, int postgame, int *sorted, int f_created);
+void add_new_words(tree *t, list *f, res_list *r, int len, int f_created);
 void word_check(char *password, char *buffer, char *guide, int len, int *tp, short *pc, short *wc, list *f, res_list *r,
                 int f_created);
 void occurrences_check(list *f, char c, int count, int strict);
-void new_words_check(res_list *r, list *f, char *new_word, const int *sorted, int len);
+void new_words_check(res_list *r, list *f, char *new_word, int len);
 void char_delete(list *f, char c, int correct);
 void char_count(short *bc, const char *word, int len);
 short char_check(short *bc, char c);
 void delete_index(int i, char c, list *f, int correct);
-void first_add(list *l, list *f, res_list *r, int len, int sorted);
 
 int main() {
     // Variable declarations
     char *buffer = calloc(BUFSIZE, sizeof(char));
     char *password = NULL, *guide = NULL;
-    int word_length, cmd_chk = 0, restart, ok = 0, tries = 0, sorted = 0, f_created = 0;
-    int *tp = &tries, *fs = &sorted;
+    int word_length, cmd_chk = 0, restart, ok = 0, tries = 0, f_created = 0;
     short pc[64] = {0}, wc[64] = {0};
-    list wordlist = NULL;
+    tree wordlist = NULL;
     list filtered = NULL;
     res_list restrictions = NULL;
+
+    // Declaration of pointers to tree and lists
+    tree *tw = &wordlist;
+    list *lf = &filtered;
+    res_list *lr = &restrictions;
 
     // -- Game setup --
     // This is only run once.
@@ -69,16 +88,11 @@ int main() {
             if(scanf("%s", buffer) != 0) {
                 if(strcmp(buffer, "+nuova_partita") == 0)
                     cmd_chk = 1;
-                else wordlist = add(wordlist, buffer, word_length);
+                else rbt_insert(tw, buffer, word_length);
                 memset(buffer, 0, BUFSIZE);
             }
         }
     }
-
-    // Declaration of pointer to list
-    list *lw = &wordlist;
-    list *lf = &filtered;
-    res_list *lr = &restrictions;
 
     // If the word has been input before, the password is saved.
     if(scanf("%s", buffer) != 0) {
@@ -104,28 +118,20 @@ int main() {
                 // If the "+inserisci_inizio" command is passed, new words are added to the wordlist through
                 // the "add_new_words" function.
                 if(strcmp(buffer, "+inserisci_inizio") == 0) {
-                    add_new_words(lw, lf, lr, word_length, 0, fs, f_created);
+                    add_new_words(tw, lf, lr, word_length, f_created);
                     memset(buffer, 0, BUFSIZE);
                     continue;
                 }
                 // If "+stampa_filtrate" is called, the filtered list is printed on the screen.
                 else if(strcmp(buffer, "+stampa_filtrate") == 0) {
-                    if(!f_created) {
-                        filtered = duplicate_sort(wordlist, word_length, 0);
-                        f_created = 1;
-                        sorted = 1;
-                    }
-                    else if(!sorted) {
-                        filtered = duplicate_sort(filtered, word_length, 1);
-                        sorted = 1;
-                    }
-                    print(filtered);
+                    if(!f_created) print_tree(wordlist);
+                    else print(filtered);
                     memset(buffer, 0, BUFSIZE);
                     continue;
                 }
                 // If the word is not of the correct length, or it does not appear in the wordlist,
                 // no tries are consumed and the user can retry.
-                else if(strlen(buffer) != word_length || search(wordlist, buffer) == NULL) {
+                else if(strlen(buffer) != word_length || rbt_search(wordlist, buffer) == NULL) {
                     printf("not_exists\n");
                     memset(buffer, 0, BUFSIZE);
                     continue;
@@ -136,9 +142,9 @@ int main() {
                     else if(tries >= 0) {
                         memset(wc, 0, BUFSIZE * sizeof(short));
                         char_count(wc,buffer, word_length);
-                        word_check(password, buffer, guide, word_length, tp, pc, wc, lf, lr, f_created);
+                        word_check(password, buffer, guide, word_length, &tries, pc, wc, lf, lr, f_created);
                         if(!f_created) {
-                            first_add(lw, lf, lr, word_length, sorted);
+                            add_to_list(tw, lf, lr, word_length);
                             f_created = 1;
                         }
                         memset(buffer, 0, BUFSIZE);
@@ -158,14 +164,13 @@ int main() {
                 memset(buffer, 0, BUFSIZE);
                 restrictions = res_destroy(restrictions);
                 filtered = destroy(filtered);
-                sorted = 0;
                 f_created = 0;
                 // The user can manage settings while in this loop, until they decide to start a new game.
                 while(!restart) {
                     if(scanf("%s", buffer) == EOF) break;
                     else {
                         if(strcmp(buffer, "+inserisci_inizio") == 0)
-                            add_new_words(lw, lf, lr, word_length, 1, fs, f_created);
+                            add_new_words(tw, lf, lr, word_length, f_created);
                         if(strcmp(buffer, "+nuova_partita") == 0) {
                             memset(buffer, 0, BUFSIZE);
                             if(scanf("%s", buffer) != 0) {
@@ -257,16 +262,6 @@ void print(list l) {
     }
 }
 
-list search(list l, char *query) {
-    list curr = l;
-    while(curr != NULL) {
-        if(strcmp(curr -> data, query) == 0)
-            return curr;
-        curr = curr -> next;
-    }
-    return NULL;
-}
-
 res_list add_res(res_list r, char c, int index, int correct, int count, int exact) {
     res_list tmp = malloc(sizeof(struct res_node));
     tmp->c = c;
@@ -298,29 +293,238 @@ res_list res_destroy(res_list r) {
     return NULL;
 }
 
-list duplicate_sort(list f, int len, int overwrite) {
-    list curr = f, head = NULL;
+// Red-Black Tree function definitions
+
+void print_tree(tree t) {
+    // When the bottom of the branch is reached, the function returns.
+    if(t == NULL) return;
+    // Recursive call to print the left child of a given node.
+    print_tree(t->left);
+    printf("%s\n", t->data);
+    // Recursive call to print the right child of a given node.
+    print_tree(t->right);
+}
+
+tree rbt_search(tree t, const char *data) {
+    // This variable saves the result of strcmp to make the code easier to read.
+    int search_result;
+    // If the tree is empty or the word was not found anywhere else, the function returns NULL.
+    if(t == NULL) return t;
+    else {
+        search_result = strcmp(t->data, data);
+        // If the string in the tree node and the one passed as an argument are the same, the node is returned.
+        if(!search_result) return t;
+        // Otherwise, if the string found in the node comes before the one to be found, the function keeps searching
+        // to the right.
+        else if(search_result < 0) return rbt_search(t->right, data);
+        // If the string in the node comes after instead, the function keeps searching to the left.
+        else return rbt_search(t->left, data);
+    }
+}
+
+void rbt_insert(tree *t, const char *data, int len) {
+    // A new portion of memory is reserved for the node and the string passed as an argument is copied in it.
+    tree new_node = malloc(sizeof(struct tnode) + sizeof(char) * (len + 1));
+    strcpy(new_node->data, data);
+    tree tmp_node = NULL, curr_node = *t;
+    // This loop finds the correct location for the new node.
+    while(curr_node != NULL) {
+        // The tree is searched starting from the root.
+        tmp_node = curr_node;
+        // If the data to be added comes before the current node, then we proceed to the left branch.
+        if(strcmp(new_node->data, curr_node->data) < 0)
+            curr_node = curr_node->left;
+        // Otherwise, we proceed to the right branch.
+        else curr_node = curr_node->right;
+    }
+    // When we arrive to an empty subtree (or leaf), we add the new node, connecting it to its parent, found in the
+    // previous loop.
+    new_node->parent = tmp_node;
+    // If the node found beforehand is empty, the new node becomes the root of the tree.
+    if(tmp_node == NULL) *t = new_node;
+    // This section of code decides whether the new node will become the left child or right child of the parent node.
+    else if(strcmp(new_node->data, tmp_node->data) < 0)
+        tmp_node->left = new_node;
+    else tmp_node->right = new_node;
+    // The new node is initialized: its children are set as NULL and its color is set to red.
+    new_node->left = NULL;
+    new_node->right = NULL;
+    new_node->color = RED;
+    // This function then fixes possible violations of RBT rules.
+    rbt_insert_fixup(t, &new_node);
+}
+
+void left_rotate(tree *root, tree *node) {
+    // To rotate the node passed as an argument, we need a temporary node as a buffer.
+    // The left subtree of the node 'tmp' becomes the right subtree of the node passed to the function.
+    tree tmp = (*node)->right;
+    (*node)->right = tmp->left;
+    // If the new right subtree of 'node' is not empty (or a leaf), then it is reattached by reassigning its parent
+    // property.
+    if(tmp->left != NULL)
+        tmp->left->parent = *node;
+    // The parent of the node has to become tmp's parent for them to rotate.
+    tmp->parent = (*node)->parent;
+    // If the node is the root of the tree, then the root is updated with tmp, which is the new root.
+    if((*node)->parent == NULL)
+        *root = tmp;
+    // Otherwise, the node's new parent is reassigned according to whether node was a left or a right child.
+    else if(*node == (*node)->parent->left)
+        (*node)->parent->left = tmp;
+    else (*node)->parent->right = tmp;
+    // The node becomes tmp's left child and tmp becomes node's parent.
+    tmp->left = *node;
+    (*node)->parent = tmp;
+}
+
+void right_rotate(tree *root, tree *node) {
+    // This function is equivalent to the one above, but with left and right exchanged.
+    tree tmp = (*node)->left;
+    (*node)->left = tmp->right;
+    if(tmp->right != NULL)
+        tmp->right->parent = (*node);
+    tmp->parent = (*node)->parent;
+    if((*node)->parent == NULL)
+        *root = tmp;
+    else if((*node) == (*node)->parent->left)
+        (*node)->parent->left = tmp;
+    else (*node)->parent->right = tmp;
+    tmp->right = (*node);
+    (*node)->parent = tmp;
+}
+
+void rbt_insert_fixup(tree *t, tree *node_to_fix) {
+    // These two nodes are declared for convenience reasons. They will become a node's parent and grandparent.
+    tree parent = NULL, grandparent = NULL;
+    // The loop is exited if:
+    // - The node that has to be fixed is the root: in that case, recoloring the node black fixes the tree.
+    // - The color of the node to be fixed is not black: the fix-up needs to be done on red nodes only.
+    // - The color of the parent of the node to be fixed is not red: restrictions on the color of children nodes in RBTs
+    //   is only valid for red nodes, not black ones.
+    while(((*node_to_fix) != *t) && ((*node_to_fix)->color != BLACK) && ((*node_to_fix)->parent->color == RED)) {
+        // These assignments are done for convenience, to make the code easier to read.
+        parent = (*node_to_fix)->parent;
+        grandparent = (*node_to_fix)->parent->parent;
+        // This part of the code fixes nodes when the parent of the node to be fixed is a left child.
+        if(parent == grandparent->left) {
+            // This assignment is done for convenience.
+            tree uncle = grandparent->right;
+            // If the node's uncle is red (and not empty), then the nodes are recolored to balance the tree.
+            // This is generally defined as 'case 1'.
+            if(uncle != NULL && uncle->color == RED) {
+                grandparent->color = RED;
+                parent->color = BLACK;
+                uncle->color = BLACK;
+                // The check continues on the node's grandparent.
+                *node_to_fix = grandparent;
+            } else {
+                // These two cases (namely 'case 2' and 'case 3') are defined when the node's uncle is black.
+                // 'Case 2': the node's uncle is black and the node to be fixed is a right child.
+                if((*node_to_fix) == parent->right) {
+                    // The node's parent is rotated left. We are now in 'case 3'.
+                    left_rotate(t, &parent);
+                    *node_to_fix = parent;
+                    parent = (*node_to_fix)->parent;
+                }
+                // 'Case 3': the node's uncle is black and the node to be fixed is a left child.
+                // In this case, the node's grandparent is rotated right and, with some recoloring, the fixup is done.
+                right_rotate(t, &grandparent);
+                parent->color = BLACK;
+                grandparent->color = RED;
+                *node_to_fix = parent;
+            }
+        } else {
+            // This part of the code fixes nodes when the parent of the node to be fixed is a right child instead.
+            // The cases are exactly the same, but with 'left' and 'right' reversed.
+            tree uncle = grandparent->left;
+            if(uncle != NULL && uncle->color == RED) {
+                grandparent->color = RED;
+                parent->color = BLACK;
+                uncle->color = BLACK;
+                *node_to_fix = grandparent;
+            } else {
+                if((*node_to_fix) == parent->left) {
+                    right_rotate(t, &parent);
+                    (*node_to_fix) = parent;
+                    parent = (*node_to_fix)->parent;
+                }
+                left_rotate(t, &grandparent);
+                parent->color = BLACK;
+                grandparent->color = RED;
+                (*node_to_fix) = parent;
+            }
+        }
+    }
+    // This is the base case: if the node passed to the function is the root or the fixup has finished,
+    // the root is colored black.
+    (*t)->color = BLACK;
+}
+
+void add_to_list(tree *t, list *f, res_list *r, int len) {
+    // This function makes an in order tree walk in reverse to add filtered elements of the tree to the filtered list.
+    // The walk is done from right to left instead of the usual left to right because it's faster to add a node
+    // to a list when it's added to the top of the list.
+    if(*t == NULL) return;
+    add_to_list(&(*t)->right, f, r, len);
+    res_list curr = *r;
+    int to_add = 1;
     while(curr != NULL) {
-        head = add_sort(head, curr->data, len);
+        if(curr->index != -1) {
+            if(curr->correct && (*t)->data[curr->index] != curr->c) {
+                to_add = 0;
+                break;
+            }
+            if(!curr->correct && (*t)->data[curr->index] == curr->c) {
+                to_add = 0;
+                break;
+            }
+        }
+        if(curr->count != -1) {
+            if (curr->count == 0) {
+                if (strchr((*t)->data, curr->c) != NULL) {
+                    to_add = 0;
+                    break;
+                }
+            }
+            else {
+                char *w = (*t)->data;
+                int count = 0;
+                while(w != NULL) {
+                    w = strchr(w, curr->c);
+                    if(w != NULL) {
+                        ++count;
+                        ++w;
+                    }
+                }
+                if(curr->exact && count != curr->count) {
+                    to_add = 0;
+                    break;
+                }
+                if(!curr->exact && count < curr->count) {
+                    to_add = 0;
+                    break;
+                }
+            }
+        }
         curr = curr->next;
     }
-    if(overwrite) destroy(f);
-    return head;
+    if(to_add) *f = add(*f, (*t)->data, len);
+    add_to_list(&(*t)->left, f, r, len);
 }
 
 // Game function definitions
 
-void add_new_words(list *l, list *f, res_list *r, int len, int postgame, int *sorted, int f_created) {
+void add_new_words(tree *t, list *f, res_list *r, int len, int f_created) {
     char *buffer = calloc(BUFSIZE, sizeof(char));
     int exit = 0;
     while(!exit) {
         if(scanf("%s", buffer) != 0) {
             if(strcmp(buffer, "+inserisci_fine") == 0)
                 exit = 1;
-            else if(strlen(buffer) == len) {
-                *l = add(*l, buffer, len);
+            else {
+                rbt_insert(t, buffer, len);
                 if (f_created && r != NULL)
-                    new_words_check(r, f, buffer, sorted, len);
+                    new_words_check(r, f, buffer, len);
             }
         }
         memset(buffer, 0, BUFSIZE);
@@ -523,7 +727,7 @@ void occurrences_check(list *f, char c, int count, int strict) {
     }
 }
 
-void new_words_check(res_list *r, list *f, char *new_word, const int *sorted, int len) {
+void new_words_check(res_list *r, list *f, char *new_word, int len) {
     res_list curr = *r;
     while(curr != NULL) {
         if(curr->index != -1) {
@@ -551,10 +755,7 @@ void new_words_check(res_list *r, list *f, char *new_word, const int *sorted, in
         curr = curr->next;
     }
     // If the function did not return, the word can be added.
-    if(sorted)
-        *f = add_sort(*f, new_word, len);
-    else
-        *f = add(*f, new_word, len);
+    *f = add_sort(*f, new_word, len);
 }
 
 void char_delete(list *f, char c, int correct) {
@@ -647,60 +848,5 @@ void delete_index(int i, char c, list *f, int correct) {
             prev = curr;
             curr = curr->next;
         }
-    }
-}
-
-void first_add(list *l, list *f, res_list *r, int len, int sorted) {
-    list curr_l = *l;
-    res_list curr_r = *r;
-    int to_add;
-    while(curr_l != NULL) {
-        to_add = 1;
-        curr_r = *r;
-        while(curr_r != NULL) {
-            if(curr_r->index != -1) {
-                if(curr_r->correct && curr_l->data[curr_r->index] != curr_r->c) {
-                    to_add = 0;
-                    break;
-                }
-                if(!curr_r->correct && curr_l->data[curr_r->index] == curr_r->c) {
-                    to_add = 0;
-                    break;
-                }
-            }
-            if(curr_r->count != -1) {
-                if (curr_r->count == 0) {
-                    if (strchr(curr_l->data, curr_r->c) != NULL) {
-                        to_add = 0;
-                        break;
-                    }
-                }
-                else {
-                    char *w = curr_l->data;
-                    int count = 0;
-                    while(w != NULL) {
-                        w = strchr(w, curr_r->c);
-                        if(w != NULL) {
-                            ++count;
-                            ++w;
-                        }
-                    }
-                    if(curr_r->exact && count != curr_r->count) {
-                        to_add = 0;
-                        break;
-                    }
-                    if(!curr_r->exact && count < curr_r->count) {
-                        to_add = 0;
-                        break;
-                    }
-                }
-            }
-            curr_r = curr_r->next;
-        }
-        if(to_add) {
-            if(sorted) *f = add_sort(*f, curr_l->data, len);
-            else *f = add(*f, curr_l->data, len);
-        }
-        curr_l = curr_l->next;
     }
 }
