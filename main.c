@@ -88,6 +88,8 @@ int main() {
             if(scanf("%s", buffer) != 0) {
                 if(strcmp(buffer, "+nuova_partita") == 0)
                     cmd_chk = 1;
+                else if(strcmp(buffer, "+inserisci_inizio") == 0)
+                    add_new_words(tw, lf, lr, word_length, f_created);
                 else rbt_insert(tw, buffer, word_length);
                 memset(buffer, 0, BUFSIZE);
             }
